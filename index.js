@@ -1,7 +1,7 @@
 /* global loam */
 
 // Use the locally built version of loam, with a CDN copy of GDAL from unpkg.
-loam.initialize('/node_modules/loam/lib/', 'https://unpkg.com/gdal-js@2.0.0/');
+loam.initialize('./node_modules/loam/lib/', 'https://unpkg.com/gdal-js@2.0.0/');
 
 const EPSG4326 =
     'GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.01745329251994328,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","4326"]]';
