@@ -1,0 +1,14 @@
+{
+  "name": "wgt",
+  "version": "0.0.1",
+  "description": "Series of web tool for exploratory geomorphological analysis",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "boris gailleton",
+  "license": "MIT",
+  "dependencies": {
+    "loam": "^1.1.0"
+  }
+}
