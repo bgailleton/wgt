@@ -1,4 +1,5 @@
 /* global loam */
+import loam
 
 // Use the locally built version of loam, with a CDN copy of GDAL from unpkg.
 loam.initialize('./node_modules/loam/lib/', 'https://unpkg.com/gdal-js@2.0.0/');
