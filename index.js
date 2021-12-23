@@ -1,5 +1,51 @@
 /* global loam */
 // import loam
+// import {yoloyolobengbeng} from './testmpl.js';
+// console.log("Loading python enjiugkuygkuygjhgine ...");
+
+// async function main() {
+//   let pyodide = await loadPyodide({
+//     indexURL: "https://cdn.jsdelivr.net/pyodide/v0.18.1/full/",
+//   });
+//   return pyodide;
+// }
+// const pyodide = main();
+// pyodide.runPython(`print('baft'`);
+
+function yoloyolobengbeng(thispy)
+{
+	thispy.runPython(`
+import matplotlib.pyplot as plt
+import numpy as np
+from js import document
+
+fig, ax = plt.subplots()
+
+X = np.arange(0,10,0.01)
+Y = np.sin(X) + np.random.rand(*X.shape)
+
+ax.plot(X,Y, color = "red")
+
+ax.set_xlabel("Bite")
+ax.set_ylabel("LOL")
+
+# ordinary function to create a div
+def create_root_element1(self):
+	div = document.createElement('div')
+	document.body.appendChild(div)
+	return div
+def create_root_element2(self):
+	return document.getElementById('figure1')
+
+#override create_root_element method of canvas by one of the functions above
+fig.canvas.create_root_element = create_root_element1.__get__(
+create_root_element1, fig.canvas.__class__)
+
+fig.canvas.show()
+
+
+	`);
+};
 
 // Use the locally built version of loam, with a CDN copy of GDAL from unpkg.
 loam.initialize('', 'https://unpkg.com/gdal-js@2.0.0/');
@@ -59,3 +105,13 @@ function displayInfo() {
 document.getElementById('geotiff-file').onchange = function () {
     displayInfo();
 };
+
+document.getElementById('yoloer').onclick = async function() {
+	console.log("yolo")
+	// let pyodide = main();
+	let pyodide = await initPyodide;
+	yoloyolobengbeng(pyodide);
+};
+
+
+

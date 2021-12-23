@@ -9,6 +9,7 @@
   "author": "boris gailleton",
   "license": "MIT",
   "dependencies": {
+    "@fortawesome/fontawesome-free": "^5.15.4",
     "loam": "^1.1.0"
   }
 }

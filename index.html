@@ -2,7 +2,34 @@
 <html>
     <head href="index.html">
         <title>Loam Test</title>
+        <link rel="stylesheet" href="node_modules/@fortawesome/fontawesome-free/css/fontawesome.min.css"></link>
+        <script type="text/javascript" src="https://cdn.jsdelivr.net/pyodide/v0.18.1/full/pyodide.js"></script>
         <script type="text/javascript" src="node_modules/loam/lib/loam.js"></script>
+        <script type="text/javascript">
+				  let initPyodide = loadPyodide({
+				    indexURL: "https://cdn.jsdelivr.net/pyodide/v0.18.1/full/",
+				  });
+				  async function main() {
+				    let pyodide = await initPyodide;
+				    await pyodide.loadPackage("numpy");
+						await pyodide.loadPackage("matplotlib");
+				    // ... other code
+				  };
+				  main();
+					
+				  // async function main() {
+				  //   let pyodide = await initPyodide;
+				  //   // ... other code
+				  // };
+				</script>
+<!--         <script type="text/javascript">
+	        console.log("Loading python enjiugkuygkuygjhgine ...");
+	        
+	        let YOLO = async function() {let pyodide = await loadPyodide({ indexURL : "https://cdn.jsdelivr.net/pyodide/v0.18.1/full/" });
+	        pyodide.runPython("print('YOLOBENG')"); return pyodide; };
+	        let pyodide = YOLO();
+      	</script>
+         -->
         <meta charset="utf-8"></meta>
     </head>
     <body>
@@ -13,6 +40,7 @@
             Select a GeoTIFF using the Browse... button. Information about the file will be
             displayed below.
         </p>
+        <button id="yoloer">Plot stuff yolo</button>
 
         <div id="gdalinfo"></div>
         <script src="index.js"></script>
