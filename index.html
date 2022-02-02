@@ -1,48 +1,33 @@
 <!DOCTYPE html>
 <html>
     <head href="index.html">
-        <title>Loam Test</title>
-        <link rel="stylesheet" href="node_modules/@fortawesome/fontawesome-free/css/fontawesome.css"></link>
-        <script type="text/javascript" src="https://cdn.jsdelivr.net/pyodide/v0.18.1/full/pyodide.js"></script>
-        <script type="text/javascript" src="node_modules/loam/lib/loam.js"></script>
-        <script type="text/javascript">
-				  let initPyodide = loadPyodide({
-				    indexURL: "https://cdn.jsdelivr.net/pyodide/v0.18.1/full/",
-				  });
-				  async function main() {
-				    let pyodide = await initPyodide;
-				    await pyodide.loadPackage("numpy");
-						await pyodide.loadPackage("matplotlib");
-				    // ... other code
-				  };
-				  main();
-					
-				  // async function main() {
-				  //   let pyodide = await initPyodide;
-				  //   // ... other code
-				  // };
-				</script>
-<!--         <script type="text/javascript">
-	        console.log("Loading python enjiugkuygkuygjhgine ...");
-	        
-	        let YOLO = async function() {let pyodide = await loadPyodide({ indexURL : "https://cdn.jsdelivr.net/pyodide/v0.18.1/full/" });
-	        pyodide.runPython("print('YOLOBENG')"); return pyodide; };
-	        let pyodide = YOLO();
-      	</script>
-         -->
+        <title>WGT alpha</title>
         <meta charset="utf-8"></meta>
+        <script type="text/javascript" src="./src/minimalgraph.js"></script>
+        <script type="text/javascript" src="node_modules/loam/lib/loam.js"></script> 
+        <script	type="text/javascript"	src="https://cdn.jsdelivr.net/pyodide/dev/full/pyodide.js"></script>
+        <script type="text/javascript" src="./main.js" defer></script>
+        <link rel="stylesheet" href="./main.css">
     </head>
     <body>
-        <form>
+    	<header>
+    		<img src="./media/logo_full.png" style="order: 1; width: max(20%); height: auto; flex-grow: 1;">
+    		<h1 style="order: 2; flex-grow: 1;">WebTopoTools</h1>
+    		<p style="color:darkgray; font-size: smaller; font-style: italic; order: 3; flex-grow: 1;" >Status: <span id="statuspan">Nothing is happening...</span></p>
+    	</header>
+
+    	<div id="loader">
+    		<form>
             <input type="file" id="geotiff-file" />
         </form>
         <p>
-            Select a GeoTIFF using the Browse... button. Information about the file will be
-            displayed below.
+            Select a GeoTIFF using the Browse... button to start.
         </p>
-        <button id="yoloer">Plot stuff yolo</button>
+    	</div>
 
-        <div id="gdalinfo"></div>
-        <script src="index.js"></script>
+    	<div id="plotter_topo" style= "display: none">
+    		 <button type="button" id="plotfigtopo">Plot Topo</button> 
+    	</div>
+
     </body>
 </html>
