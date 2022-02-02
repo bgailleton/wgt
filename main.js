@@ -36,7 +36,7 @@ def create_root_element2(self):
 
 #override create_root_element method of canvas by one of the functions above
 fig.canvas.create_root_element = create_root_element1.__get__(
-create_root_element1, fig.canvas.__class__)
+create_root_element2, fig.canvas.__class__)
 
 fig.canvas.show()
 
