@@ -59,7 +59,8 @@ async function load_piodide_and_initialise_wasm() {
 })
   await pyodide.loadPackage(["matplotlib", "numpy"]);
 
-  await loam.initialize("./","/node_modules/gdal-js/");
+  // await loam.initialize("./","/node_modules/gdal-js/");
+  await loam.initialize('', 'https://unpkg.com/gdal-js@2.0.0/');
   
   document.querySelector("#statuspan").innerHTML = "Ready!"
 	document.querySelector("#statuspan").style.color = "green"
