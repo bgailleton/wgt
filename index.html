@@ -4,10 +4,12 @@
         <title>WGT alpha</title>
         <meta charset="utf-8"></meta>
         <base href=".">
+        <link rel="stylesheet" href="node_modules/@fortawesome/fontawesome-free/css/fontawesome.css"></link>
         <script type="text/javascript" src="src/minimalgraph.js"></script>
         <!-- <script type="text/javascript" src="node_modules/gdal-js/gdal.js"></script>  -->
         <script type="text/javascript" src="node_modules/loam/lib/loam.js"></script> 
-        <script	type="text/javascript"	src="https://cdn.jsdelivr.net/pyodide/dev/full/pyodide.js"></script>
+        <!-- <script	type="text/javascript"	src="https://cdn.jsdelivr.net/pyodide/dev/full/pyodide.js"></script> -->
+        <script type="text/javascript" src="https://cdn.jsdelivr.net/pyodide/v0.18.1/full/pyodide.js"></script>
         <script type="text/javascript" src="main.js" defer></script>
         <link rel="stylesheet" href="main.css">
     </head>
@@ -29,9 +31,8 @@
 
     	<div id="plotter_topo" style= "display: none">
     		 <button type="button" id="plotfigtopo">Plot Topo</button> 
-    	</div>
-    	<div id="figure1">
-    	</div>
+    	<!-- <div id="pyplotdiv"><img id="pyplotfigure"/></div> -->
+    	<div id="pyplotdiv" style="font-family: fontawesome;"></div>
 
     </body>
 </html>
