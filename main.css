@@ -1,24 +1,92 @@
 /*Managing the overall website style*/
-/**{
-	background-color: dimgray;
+body{
+	background-color: darkgrey;
+	font-family: monospace;
 }
-*/
+
+#instructions{
+	font-size: large;
+	margin-top: 1cm;
+}
+
+
 #loader{
 	font-family: monospace;
-	display: none;
 	color: black;
 	margin-top: 2.5%;
 }
+
+.analyser{
+	display: none;
+}
+
+
 
 header{
 	display: flex;
 	color: black;
 	font-family: monospace;
-	justify-content: center;
-	width: 40vw;
-	height: auto;
-	justify-self: center;
+	justify-content: flex-start;
+	/*width: 40vw;*/
+	height: 4cm;
+	align-items: center;
 	gap: 5%;
 	font-size: large;
+	margin: auto;
 }
+
+
+.niceBtn, input[type=file]::file-selector-button {
+	background-color: black;
+	color: white;
+	transition: all 0.5s;
+	height: 1cm;
+	width: auto;
+}
+
+.niceBtn:hover, input[type=file]::file-selector-button:hover{
+	height: 1.2cm;
+	width: auto;
+	transition: all 0.5s;
+}
+
+select{
+	height: 1cm;
+	width: auto;
+	background-color: black;
+	color: white;
+}
+
+
+
+#geotiff-file{
+	margin-top: 0;
+}
+
+
+#pyplotdiv{
+	position: absolute;
+	left: 0px;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
