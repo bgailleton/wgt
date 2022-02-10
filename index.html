@@ -23,38 +23,50 @@
 			</header>
 
 			<div id="instructions">
-				<p>Welcome to WebTopoTools, an exploratory tool for geomorphologist aiming to provide easy access to state-of-the-art research algorithms. This is an alpha version of the tool, currently in development. The tool is full client-side, meaning that everything is happening on your machine: no data transfer, gathering or costly server management. It is powered by webassembly, a technology enabling compilation of fast lower-level codes (c/c++/...) to something executable by web browser. WebTopoTools relies on this technology to cross custom c++ codes with pyodide (a webassembly CPython) and loam-GDAL (geospatial data processing) and deliver fast routines dedicated to geomorphological analysis.</br>The current workflow is:</p>
-				<ol type="1">
-					<li>Initialisation phase (it takes few seconds to fetch and load the codes)</li>
-					<li>Load a tif Digital Elevation Model (preferentially in projected coordinates)</li>
-					<li>Select analysis</li>
-					<li>Tune parameters if any</li>
-					<li>Run the analysis</li>
-					<li>Back to 3 until you are done</li>
-				</ol>
-				<p>Few things to be aware of: this tool is very much experimental and might crash or softlock unexpectedly. If you refresh the page multiple times, reopen a new tab to clear memory. NaN and no data are not managed well (yet). There are technical limitations making the use of large files (difficult to give an approximation, but let's say >100Mb) difficult but this technology is evolving FAST. The software has been tested on Chrome and Firefox, MS Edge should be fine as based on chromium but Safari can be randomly unstable and buggy for unknown reasons (don't get me started on that). Finally, I am a novice in front-end, so excuse poor graphics.<br>Send feedback/questions to boris.gailleton@gfz-potsdam.de</p>
+				<p>Welcome to WebTopoTools, an exploratory tool for geomorphologist - currently in active development.<br/><br/>The tool is full client-side, meaning that everything is happening on your machine: no data transfer, gathering or costly server management. It is powered by webassembly, allowing us to deliver via the web a light version our research code base (in c++ and python) without any installation needed and nearly the same performances. <br/><br/>Few things to be aware of: this tool is at an experimental stage and might crash or softlock unexpectedly. If you refresh the page multiple times, reopen it in a new tab for a tru fresh start. There are technical limitations making the use of large files difficult (let's say >100Mb might become unstable) but stay tuned as this technology is evolving FAST. The software has been tested on Chrome and Firefox, MS Edge should be fine as based on chromium and Safari can be randomly unstable and buggy.<br/><br>Send feedback/questions to boris.gailleton@gfz-potsdam.de</p>
 				<button class="niceBtn" type="button" onclick="getElementById('instructions').style.display = 'none'">OK got it!</button> 
 			</div>
 
+
+			<!-- MAIN module: analyses picker -->
 			<div id="chooser" class="analyser">
 				<h3>
-						Choose an option...
+						Choose an action...
 				</h3>
 				<select id="chooser_analysis" name="anal">
+					<!-- Default choice (not a choice)-->
 					<option value="NaA" selected="selected">...</option>
+					<!-- Load the DEM -->
 					<option value="loadDEM">Load DEM</option>
+					<!-- Extract rivers -->
+					<option value="riverExt">Extract River Network</option>
 				</select> 
 				
 			</div>
 
+			<!-- DEM loader -->
 			<div id="loader" class="analyser">
 				<h3>
-						Load your DEM.
+						Load a Digital Elevation Model (only geotiff)
 				</h3>
-				<form>
-						<input type="file" id="geotiff-file"/>
-				</form>
+				<p>Select the different preprocessing options, when ready: Browse and select your file.</p>
+				<!-- Browse button -->
+				<input type="file" id="geotiff-file"/>			
+				<!-- Set the minimum elevation -->
+				<label for="minZ">Remove all data below</label>
+				<input type="text" id="seaLvlRemove" name="minZ" style="width: 1cm;" />		
+				<!-- Option for the flow preprocessing -->
+				<p>Default flow processing? <input type="checkbox" id="defaultCarvingCheck" checked> (Simulate carving to ensure flow routing, other options can be chosen in the action "preprocessing")</p>
+				<p>Hillshade transparency: <span id="valueOfalphaHSAtLoad"></span> <input type="range" id="alphaHSAtLoad" min="0" max="1" value="0.65" step="0.05"> (0: invisible, 1: only hillshade)</p>
 				
+			</div>
+
+			<!-- Extracting river network -->
+			<div id="river_extraction" class="analyser">
+				<h3>
+						Extract rivers.
+				</h3>
+				<button class="niceBtn" type="button" id="extract_river" ></button> 		
 			</div>
 
 			<div id="pyplotdiv">

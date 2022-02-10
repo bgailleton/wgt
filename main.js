@@ -14,8 +14,12 @@ let paramCauldron = {
 let pyPlotter = {}
 let checker = {
 	ready: false,
-	loaded: false,
+	demLoaded: false,
 }
+let idplotdiv = 'pyplotdiv'
+
+
+
 // First I need to load pyodide engine
 load_piodide_and_initialise_wasm()
 
@@ -24,15 +28,58 @@ document.getElementById('geotiff-file').onchange =  async function () {
     await hillshade();
     console.log(dataCauldron)
     await pyPlotter.topoPlot(dataCauldron)
-
-    document.getElementById('pyplotdiv').style.position = "absolute";
-    document.getElementById('pyplotdiv').style.left = "0px";
-
 };
 
-document.getElementById('chooser').addEventListener('change',displayTheRightAnalysis);
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// #end of file
 
 

@@ -1,23 +1,34 @@
+const initpyPlot = function(){
+	pyodide.runPython(`
+import matplotlib.pyplot as plt
+from js import document
+import numpy as np
+fig, ax = plt.subplots()
+ax.set_xlabel("Easting")
+ax.set_ylabel("Northing")
+def create_root_element(self):
+	return document.getElementById('pyplotdiv')
+# proxy = create_proxy(create_root_element2)
+
+##override create_root_element method of canvas by one of the functions above
+fig.canvas.create_root_element = create_root_element.__get__(create_root_element, fig.canvas.__class__)
+#fig.canvas.create_root_element = create_root_element
+fig.canvas.show()
+
+		`)
+}
+
 // First function registering basic topoplot
 const registerTopoPlot = function(pyPlotter){
 	pyPlotter.topoPlot = pyodide.runPython(`
 def topoPlot(dataCauldron):
 	dataCauldron = dataCauldron.to_py()
-	import matplotlib.pyplot as plt
-	import numpy as np
-	from js import document
 
 	# First getting all the data from the Cauldron
 	topo = np.asarray(dataCauldron["topo"]).reshape(dataCauldron["ny"],dataCauldron["nx"])
 	HS = np.asarray(dataCauldron["HS"]).reshape(dataCauldron["ny"],dataCauldron["nx"])
-	#pXriv = np.asarray(dataCauldron["Xriv"]);
-	#pYriv = np.asarray(dataCauldron["Yriv"]);
-	#size = np.asarray(dataCauldron["Ariv"])
-
-	fig, ax = plt.subplots()
-
-	cb = ax.imshow(topo, cmap = 'gist_earth', extent = dataCauldron["extents"], aspect = "auto")
-	ax.imshow(HS, cmap = 'gray', extent = dataCauldron["extents"], aspect = "auto", alpha = 0.65)
+	cb = ax.imshow(topo, cmap = 'gist_earth', extent = dataCauldron["extents"], aspect = "auto", vmin = dataCauldron["seaLvl"])
+	ax.imshow(HS, cmap = 'gray', extent = dataCauldron["extents"], aspect = "auto", alpha = dataCauldron["alphaHS"])
 
 	#size = size/size.max()
 	#size = (size * (5 - 2)) + 2
@@ -29,15 +40,6 @@ def topoPlot(dataCauldron):
 	ax.set_xlabel("Easting")
 	ax.set_ylabel("Northing")
 
-
-	def create_root_element(self):
-		return document.getElementById('pyplotdiv')
-	# proxy = create_proxy(create_root_element2)
-
-	##override create_root_element method of canvas by one of the functions above
-	fig.canvas.create_root_element = create_root_element.__get__(create_root_element, fig.canvas.__class__)
-	#fig.canvas.create_root_element = create_root_element
-
 	fig.canvas.show()
 
 
@@ -48,8 +50,58 @@ topoPlot
 }
 
 
-const registerPlotters = function(pyplotter){
+
+
+const registerExtractRivers = function(pyPlotter){
+	pyPlotter.riverPlot = pyodide.runPython(`
+def riverPlot(dataCauldron):
+
+	ax.scatter([0,4,67],[68,54,22])
+	
+	fig.canvas.show()
+
+
+
+riverPlot`)
+}
+
+
+const initPlotters = function(pyplotter){
+	initpyPlot()
 	registerTopoPlot(pyPlotter);
+	registerExtractRivers(pyPlotter);
+
+
+
+	document.getElementById('chooser_analysis').addEventListener('change',displayTheRightAnalysis);
+	document.getElementById('extract_river').addEventListener('click',extract_and_plot_river);
+
+
+	allids = document.querySelectorAll('*[id]')
+    // potential_matplotlib = []
+    for(el of allids){
+    	if(el.id.includes('styles')){continue;}
+    	if(el.id.includes('matplotlib') && idplotdiv === 'pyplotdiv'){
+    		idplotdiv = el.id;
+    		// console.log("found " + idplotdiv)
+    	}
+    	else if(el.id.includes('matplotlib')){
+    		var comp =document.getElementById(idplotdiv);
+    		// console.log(el)
+    		// console.log(comp)
+    		// console.log(idplotdiv)
+    		if(el.compareDocumentPosition(comp) & Node.DOCUMENT_POSITION_CONTAINED_BY){
+    			idplotdiv = el.id;
+    		}
+
+    	}
+    }
+    console.log("selected is " + idplotdiv)
+
+
+    document.getElementById(idplotdiv).style.position = "absolute";
+    document.getElementById(idplotdiv).style.left = "0px";
+
 }
 
 

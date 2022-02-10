@@ -47,7 +47,7 @@ async function load_piodide_and_initialise_wasm() {
 	// pyodide.runPython("print('YOLOBENGYOLOBENG')")
 
 	// test_jsobj(meobj)
-	registerPlotters(pyPlotter)
+	initPlotters(pyPlotter)
 
 	displayChooser()
 
@@ -72,6 +72,9 @@ const load_DEM = async function(){
 
 	document.querySelector("#statuspan").innerHTML = "Reading info ..."
 
+	const minZ = Number(document.querySelector("#seaLvlRemove").value)
+	dataCauldron.seaLvl = minZ
+
 	const nx = await ds.width()
 	const ny = await ds.height()
 	const dxy = await ds.transform()
@@ -88,6 +91,9 @@ const load_DEM = async function(){
 	dataCauldron.xmin = xmin;
 	dataCauldron.ymin = ymin;
 	dataCauldron.extents = [xmin, xmin +  (nx + 1) * dx,ymin, ymin + (ny + 1) * dy];
+
+	dataCauldron.alphaHS = Number(document.querySelector("#alphaHSAtLoad").value)
+	console.log("Got dataCauldron HS::" + String(dataCauldron.alphaHS))
 
 	document.querySelector("#statuspan").innerHTML = "Loading bytes in memory ..."
 	console.log("Final should have " + nx*ny + " elements, dx,dy are " + dx + " " + dy)
@@ -117,22 +123,38 @@ const load_DEM = async function(){
 	mg.set_dimensions(Number(nx), Number(ny), Number(nx * ny), Number(dx), Number(dx), Number(xmin), Number(ymin))
 	mg.ingest_topo(dataCauldron.topo)
 
-
 	mg.set_default_boundaries("4edges")
+	mg.remove_seas(dataCauldron.seaLvl);
 	let datvec = new mgModule.VectorFloat()
 	
 	document.querySelector("#statuspan").innerHTML = "Computing graph ..."
 	
-	mg.compute_graph(paramCauldron.local_minima)
+	if(document.querySelector("#defaultCarvingCheck").value){
+		mg.compute_graph(paramCauldron.local_minima)
+	}
+
 	document.querySelector("#statuspan").innerHTML = "Ready!"
 	document.querySelector("#statuspan").style.color = "green"
 
-	checker.loaded = true
+	checker.demLoaded = true
 
 	displayChooser();
 	
 }
 
+
+const extract_and_plot_river = async function(){
+	hideAn();
+	if(checker.demLoaded === false){
+		updateStatus("Cannot extract rivers if no topography ingested. Please load or create DEM first.",  "red")
+	}
+	else
+	{
+		pyPlotter.riverPlot(dataCauldron);
+
+	}
+	displayChooser();
+}
 
 
 const hillshade = async function(){
@@ -140,8 +162,6 @@ const hillshade = async function(){
 	dataCauldron.HS = mg.get_HS()
 	// dataCauldron.HS = cArrayFloat32FromOffset(offset, dataCauldron.nx * dataCauldron.ny)
 	console.log(dataCauldron.HS)
-
-
 }
 
 
