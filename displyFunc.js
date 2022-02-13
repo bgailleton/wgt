@@ -30,6 +30,10 @@ const displayTheRightAnalysis = function(event){
 
 	if(analysis == "loadDEM")
 	{
+		if(checker.demLoaded === true){
+			document.querySelector("#loaderPost").style.display = "inline-block";
+			return;
+		}
 		document.querySelector('#seaLvlRemove').value = 0;
 		document.querySelector("#loader").style.display = "inline-block";
   	addToLog("Displaying raster loader")
@@ -64,6 +68,12 @@ async function addToLog(txt){
 
 }
 
+
+function dealWithLoaderPost(){
+	console.log("dfljasldfgjlkjsd")
+	hideAn();
+	displayChooser();
+}
 
 
 

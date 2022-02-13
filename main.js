@@ -17,6 +17,7 @@ let checker = {
 let idplotdiv = 'pyplotdiv'
 
 
+document.getElementById('OKbuttonloaderPost').addEventListener('click', dealWithLoaderPost);
 
 // First I need to load pyodide engine
 load_piodide_and_initialise_wasm()
@@ -27,6 +28,7 @@ document.getElementById('geotiff-file').onchange =  async function () {
     console.log(dataCauldron)
     await pyPlotter.topoPlot(dataCauldron)
 };
+
 
 
 
