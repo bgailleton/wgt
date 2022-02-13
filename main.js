@@ -1,6 +1,4 @@
-// Starting up the engine:
-document.querySelector("#statuspan").innerHTML = "Initialising ..."
-document.querySelector("#statuspan").style.color = "red"	
+addToLog("Starting the initialisation")
 
 let mg = null;
 let pyodide = null;

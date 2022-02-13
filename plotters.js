@@ -1,4 +1,10 @@
+// This file host the functions managing the python plotters.
+// apart from the initialiser, these are not called directly, but from other analyser
+// this really only manage the writing/initialisation/registering of the python function inside JS
+
+// Initialise the figure and create a div holding it
 const initpyPlot = function(){
+	addToLog("Creating the figure holder")
 	pyodide.runPython(`
 import matplotlib.pyplot as plt
 from js import document
@@ -16,6 +22,7 @@ fig.canvas.create_root_element = create_root_element.__get__(create_root_element
 fig.canvas.show()
 
 		`)
+	addToLog("Figure ready")
 }
 
 // First function registering basic topoplot
@@ -43,7 +50,6 @@ def topoPlot(dataCauldron):
 	fig.canvas.show()
 
 
-
 topoPlot
 `)
 
@@ -51,7 +57,7 @@ topoPlot
 
 
 
-
+// FUnction managing the plotting of rivers
 const registerExtractRivers = function(pyPlotter){
 	pyPlotter.riverPlot = pyodide.runPython(`
 def riverPlot(dataCauldron):
@@ -60,47 +66,44 @@ def riverPlot(dataCauldron):
 	
 	fig.canvas.show()
 
-
-
 riverPlot`)
 }
 
 
+// Load and initialise the plotting engine
 const initPlotters = function(pyplotter){
+	// Iniplot register the python plotting function
 	initpyPlot()
+	// Registered the different python functions
 	registerTopoPlot(pyPlotter);
 	registerExtractRivers(pyPlotter);
+	addToLog("Registered python plotters")
 
-
-
+	// Once this is ready, I can add the events
 	document.getElementById('chooser_analysis').addEventListener('change',displayTheRightAnalysis);
 	document.getElementById('extract_river').addEventListener('click',extract_and_plot_river);
 
-
+	// finding the new div holding matplotlibs' figure
 	allids = document.querySelectorAll('*[id]')
-    // potential_matplotlib = []
-    for(el of allids){
-    	if(el.id.includes('styles')){continue;}
-    	if(el.id.includes('matplotlib') && idplotdiv === 'pyplotdiv'){
-    		idplotdiv = el.id;
-    		// console.log("found " + idplotdiv)
-    	}
-    	else if(el.id.includes('matplotlib')){
-    		var comp =document.getElementById(idplotdiv);
-    		// console.log(el)
-    		// console.log(comp)
-    		// console.log(idplotdiv)
-    		if(el.compareDocumentPosition(comp) & Node.DOCUMENT_POSITION_CONTAINED_BY){
-    			idplotdiv = el.id;
-    		}
+	for(el of allids){
+		if(el.id.includes('styles')){continue;}
+		if(el.id.includes('matplotlib') && idplotdiv === 'pyplotdiv'){
+			idplotdiv = el.id;
+		}
+		else if(el.id.includes('matplotlib')){
+			var comp =document.getElementById(idplotdiv);
+			if(el.compareDocumentPosition(comp) & Node.DOCUMENT_POSITION_CONTAINED_BY){
+				idplotdiv = el.id;
+			}
 
-    	}
-    }
-    console.log("selected is " + idplotdiv)
+		}
+	}
+	console.log("selected is " + idplotdiv)
 
-
-    document.getElementById(idplotdiv).style.position = "absolute";
-    document.getElementById(idplotdiv).style.left = "0px";
+	// Applying style to the figue
+	document.getElementById(idplotdiv).style.position = "absolute";
+	document.getElementById(idplotdiv).style.left = "0px";
+	addToLog("Figure ready to plot data.")
 
 }
 

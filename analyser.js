@@ -1,3 +1,4 @@
+// Bunch of utility functions to translate from JS to C++, ignore
 function cArrayFloat64(size) {
     var offset = mgModule._malloc(size * 8);
     mgModule.HEAPF64.set(new Float64Array(size), offset / 8);
@@ -28,52 +29,57 @@ function cArrayFloat32FromOffset(offset,size) {
     return  mgModule.HEAPF32.subarray(offset / 4, offset / 4 +  size);
 }
 
+
+// Interesting functions start here
+
+// Load pyodide in the process
 async function load_piodide_and_initialise_wasm() {
+
+	// Loading pyodide
+	addToLog("Initialising python webassembly engine")
   pyodide = await loadPyodide({
   indexURL: "https://cdn.jsdelivr.net/pyodide/v0.18.1/full/",
 })
   await pyodide.loadPackage(["matplotlib", "numpy"]);
+  addToLog("Python engine ready!")
 
-  // pyodide.runPython(await (await fetch("./pyscripts.py")).text());
-
-  // await loam.initialize("./","/node_modules/gdal-js/");
+  addToLog("Loading GDAL")
   await loam.initialize('', 'https://unpkg.com/gdal-js@2.0.0/');
-  
-  document.querySelector("#statuspan").innerHTML = "Ready!"
-	document.querySelector("#statuspan").style.color = "green"
-	// document.querySelector("#loader").style.display = "inline-block"
-	// document.querySelector("#chooser").style.display = "inline-block"
+  addToLog("GDAL Loaded")
 
-	// pyodide.runPython("print('YOLOBENGYOLOBENG')")
-
-	// test_jsobj(meobj)
+  // Now initialising the plotters
 	initPlotters(pyPlotter)
 
+	// and displaying the chooser
 	displayChooser()
 
+	// checker fed
 	checker.ready = true
 
 }
 
 
 
-
+// Function loading a DEM
 const load_DEM = async function(){
+
+  addToLog("Loading DEM:")
+
 	const file = document.querySelector('#geotiff-file').files[0];
 	document.querySelector("#loader").style.display = "none"
+  addToLog("file is: " + file)
 
-	document.querySelector("#statuspan").innerHTML = "Loading file ..."
-	document.querySelector("#statuspan").style.color = "orange"
-
+  addToLog("Converting format to binary representation of float32")
 	let ds = await loam.open(file)
-	document.querySelector("#statuspan").innerHTML = "Converting to right format ..."
-
 	ds = await ds.convert(['-ot','Float32', '-r', 'cubic', '-of', 'ENVI'])
 
-	document.querySelector("#statuspan").innerHTML = "Reading info ..."
+	addToLog("Converted!")
 
+
+	// No loading all the parameter in the cauldron
 	const minZ = Number(document.querySelector("#seaLvlRemove").value)
 	dataCauldron.seaLvl = minZ
+	addToLog("Everything bellow " + minZ + " will be nodata.")
 
 	const nx = await ds.width()
 	const ny = await ds.height()
@@ -91,52 +97,29 @@ const load_DEM = async function(){
 	dataCauldron.xmin = xmin;
 	dataCauldron.ymin = ymin;
 	dataCauldron.extents = [xmin, xmin +  (nx + 1) * dx,ymin, ymin + (ny + 1) * dy];
-
 	dataCauldron.alphaHS = Number(document.querySelector("#alphaHSAtLoad").value)
-	console.log("Got dataCauldron HS::" + String(dataCauldron.alphaHS))
 
-	document.querySelector("#statuspan").innerHTML = "Loading bytes in memory ..."
-	console.log("Final should have " + nx*ny + " elements, dx,dy are " + dx + " " + dy)
+	addToLog("Cauldron has all the parameters loaded")
+
+	addToLog("Now ingesting the raster in Webassembly")
 	mgModule = await createModule()
-
 	let array = await ds.bytes()
-	// console.log(array)
 	array = array.buffer
-	// console.log(array)
-	// array = new Float32Array(array)
-	// let ptrCtopo = cArrayFloat32_(array)
 	dataCauldron.topo = new Float32Array(array)
-	// console.log(array)
-
 	var vec = new mgModule.VectorFloat();
-
-	// vec.resize(array.length,0)
- //  for (var i = 0; i < array.length; i++) {
-	// 	vec.set(i,array[i]);
- //  }
-
   mg = new mgModule.MinimalGraph(vec)
-	document.querySelector("#statuspan").innerHTML = "Feeding webassembly ..."
-	// console.log(array.data)
-	// console.log(Number(array.data.length))
-	// mg.ingest_topo_from_C(ptrCtopo, nx * ny)
 	mg.set_dimensions(Number(nx), Number(ny), Number(nx * ny), Number(dx), Number(dx), Number(xmin), Number(ymin))
 	mg.ingest_topo(dataCauldron.topo)
-
 	mg.set_default_boundaries("4edges")
 	mg.remove_seas(dataCauldron.seaLvl);
-	let datvec = new mgModule.VectorFloat()
-	
-	document.querySelector("#statuspan").innerHTML = "Computing graph ..."
-	
+		
 	if(document.querySelector("#defaultCarvingCheck").value){
+		addToLog("Computing graph info and resoving depressions")
 		mg.compute_graph(paramCauldron.local_minima)
 	}
-
-	document.querySelector("#statuspan").innerHTML = "Ready!"
-	document.querySelector("#statuspan").style.color = "green"
-
 	checker.demLoaded = true
+
+	addToLog("DEM loaded and ready to go")
 
 	displayChooser();
 	

@@ -1,6 +1,7 @@
 // This file contains all the function managing page display. For example when shall we show or not a page or another
 
 const displayChooser = function(){
+	// Display the main choosing platform for 
 	document.querySelector("#chooser").style.display = "inline-block";
 	document.getElementById('chooser_analysis').value = "NaA"
 }
@@ -15,7 +16,7 @@ const hideAn = function(){
 
 
 const displayTheRightAnalysis = function(event){
-	console.log("STUFF")
+
 	// First I am hiding all the other analyser
 	document.querySelectorAll('.analyser').forEach((el)=>{el.style.display='none'});
 	// Then checking which one is chosen
@@ -31,11 +32,13 @@ const displayTheRightAnalysis = function(event){
 	{
 		document.querySelector('#seaLvlRemove').value = 0;
 		document.querySelector("#loader").style.display = "inline-block";
+  	addToLog("Displaying raster loader")
 		return;
 	}
 
 	if(analysis == "riverExt")
 	{
+  	addToLog("Displaying River Extractor")
 		document.querySelector("#river_extraction").style.display = "inline-block";
 		return;
 	}
@@ -51,9 +54,14 @@ document.querySelector("#alphaHSAtLoad").addEventListener('change',(event) => {
 } ); 
 
 
-function updateStatus(txt, col){
-	document.querySelector("#statuspan").innerHTML = txt
-	document.querySelector("#statuspan").style.color = col
+async function addToLog(txt){
+	p = document.createElement("p");
+	p.innerHTML = txt
+	document.querySelector("#logTop").appendChild(p)
+
+	var div = document.querySelector("#logTop");
+	div.scrollTop = div.scrollHeight - div.clientHeight;
+
 }
 
 

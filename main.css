@@ -21,6 +21,14 @@ body{
 }
 
 
+#logTop{
+	overflow: auto;
+	height:max(3cm);
+	background-color: black;
+	color: white;
+	line-height: 2px;
+	font-size: smaller;
+}
 
 header{
 	display: flex;
@@ -34,6 +42,7 @@ header{
 	font-size: large;
 	margin: auto;
 }
+
 
 
 .niceBtn, input[type=file]::file-selector-button {
