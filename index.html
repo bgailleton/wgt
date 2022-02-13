@@ -60,13 +60,15 @@
 				<!-- Option for the flow preprocessing -->
 				<p>Default flow processing? <input type="checkbox" id="defaultCarvingCheck" checked> (Simulate carving to ensure flow routing, other options can be chosen in the action "preprocessing")</p>
 				<p>Hillshade transparency: <span id="valueOfalphaHSAtLoad"></span> <input type="range" id="alphaHSAtLoad" min="0" max="1" value="0.65" step="0.05"> (0: invisible, 1: only hillshade)</p>
+				<button class="niceBtn" type="button" id="OKbuttonloader">Load!</button>
+
 				
 			</div>
 
 			<div  id="loaderPost" class="analyser">
 				<h3 style="color: red;">To loader another DEM, it is safer to reopen the WebApp in a new app at the moment, there are few technical limitations to Webassembly.</h3>
 				<p>Note that a future update will add the possibility to drape another raster on the DEM. But this is not a priority.</p>
-				<button class="niceBtn" type="button" id="OKbuttonloaderPost"></button>
+				<button class="niceBtn" type="button" id="OKbuttonloaderPost">OK</button>
 			</div>
 
 			<!-- Extracting river network -->

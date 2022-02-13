@@ -22,11 +22,17 @@ document.getElementById('OKbuttonloaderPost').addEventListener('click', dealWith
 // First I need to load pyodide engine
 load_piodide_and_initialise_wasm()
 
-document.getElementById('geotiff-file').onchange =  async function () {
-    await load_DEM();
-    await hillshade();
-    console.log(dataCauldron)
-    await pyPlotter.topoPlot(dataCauldron)
+document.getElementById('OKbuttonloader').onclick =  async function () {
+
+	if(document.getElementById('geotiff-file').files.length === 0){
+		addToLog("No File Selected, Cannot load!")
+		return;
+	}
+
+	await load_DEM();
+	await hillshade();
+	console.log(dataCauldron)
+	await pyPlotter.topoPlot(dataCauldron)
 };
 
 
