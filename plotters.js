@@ -55,7 +55,37 @@ topoPlot
 
 }
 
+// Basic figure replotter
+const registerToporePlot = function(pyPlotter){
+	pyPlotter.toporePlot = pyodide.runPython(`
+def toporePlot(dataCauldron):
+	dataCauldron = dataCauldron.to_py()
+	fig.clear()
+	ax = fig.add_subplot()
 
+	# First getting all the data from the Cauldron
+	topo = np.asarray(dataCauldron["topo"]).reshape(dataCauldron["ny"],dataCauldron["nx"])
+	HS = np.asarray(dataCauldron["HS"]).reshape(dataCauldron["ny"],dataCauldron["nx"])
+	cb = ax.imshow(topo, cmap = 'gist_earth', extent = dataCauldron["extents"], aspect = "auto", vmin = dataCauldron["seaLvl"])
+	ax.imshow(HS, cmap = 'gray', extent = dataCauldron["extents"], aspect = "auto", alpha = dataCauldron["alphaHS"])
+
+	#size = size/size.max()
+	#size = (size * (5 - 2)) + 2
+
+	#ax.scatter(pXriv,pYriv, c = 'b', s = size, lw = 0, alpha = 0.1)
+
+	plt.colorbar(cb, label="Elevation")
+
+	ax.set_xlabel("Easting")
+	ax.set_ylabel("Northing")
+
+	fig.canvas.show()
+
+
+toporePlot
+`)
+
+}
 
 // FUnction managing the plotting of rivers
 const registerExtractRivers = function(pyPlotter){
@@ -77,6 +107,7 @@ const initPlotters = function(pyplotter){
 	// Registered the different python functions
 	registerTopoPlot(pyPlotter);
 	registerExtractRivers(pyPlotter);
+	registerToporePlot(pyPlotter);
 	addToLog("Registered python plotters")
 
 	// Once this is ready, I can add the events

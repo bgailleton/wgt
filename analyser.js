@@ -101,7 +101,7 @@ const load_DEM = async function(){
 
 	addToLog("Cauldron has all the parameters loaded")
 
-	addToLog("Now ingesting the raster in Webassembly")
+	addToLog('Computing DEM ...')
 	mgModule = await createModule()
 	let array = await ds.bytes()
 	array = array.buffer
@@ -114,7 +114,7 @@ const load_DEM = async function(){
 	mg.remove_seas(dataCauldron.seaLvl);
 		
 	if(document.querySelector("#defaultCarvingCheck").value){
-		addToLog("Computing graph info and resoving depressions")
+		addToLog("Computing graph info and resoving depressions ...")
 		mg.compute_graph(paramCauldron.local_minima)
 	}
 	checker.demLoaded = true
@@ -129,7 +129,7 @@ const load_DEM = async function(){
 const extract_and_plot_river = async function(){
 	hideAn();
 	if(checker.demLoaded === false){
-		updateStatus("Cannot extract rivers if no topography ingested. Please load or create DEM first.",  "red")
+		addToLog("Cannot extract rivers if no topography ingested. Please load or create DEM first.")
 	}
 	else
 	{
@@ -145,6 +145,13 @@ const hillshade = async function(){
 	dataCauldron.HS = mg.get_HS()
 	// dataCauldron.HS = cArrayFloat32FromOffset(offset, dataCauldron.nx * dataCauldron.ny)
 	console.log(dataCauldron.HS)
+}
+
+const replotTopoHs = async function(){
+	hideAn();
+	dataCauldron.alphaHS = Number(document.querySelector("#alphaHSAtLoad_replot").value);
+	await pyPlotter.toporePlot(dataCauldron);
+	displayChooser();
 }
 
 

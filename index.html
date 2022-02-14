@@ -25,8 +25,20 @@
 			</header>
 
 			<div id="instructions">
-				<p>Welcome to WebTopoTools, an exploratory tool for geomorphologist - currently in active development.<br/><br/>The tool is full client-side, meaning that everything is happening on your machine: no data transfer, gathering or costly server management. It is powered by webassembly, allowing us to deliver via the web a light version our research code base (in c++ and python) without any installation needed and nearly the same performances. <br/><br/>Few things to be aware of: this tool is at an experimental stage and might crash or softlock unexpectedly. If you refresh the page multiple times, reopen it in a new tab for a tru fresh start. There are technical limitations making the use of large files difficult (let's say >100Mb might become unstable) but stay tuned as this technology is evolving FAST. The software has been tested on Chrome and Firefox, MS Edge should be fine as based on chromium and Safari can be randomly unstable and buggy.<br/><br>Send feedback/questions to boris.gailleton@gfz-potsdam.de</p>
-				<button class="niceBtn" type="button" onclick="getElementById('instructions').style.display = 'none'">OK got it!</button> 
+				<p>Welcome to WebTopoTools, an exploratory tool for geomorphologist - currently in active development.<br/><br/>The tool is full client-side, meaning that everything is happening on your machine: no data transfer, gathering or costly server management. It is powered by webassembly, allowing us to deliver via the web a light version our research code base (in c++ and python) without any installation needed and nearly the same performances. <br/><br/>Few things to be aware of: this tool is at an experimental stage and might crash or softlock unexpectedly. If you refresh the page multiple times, reopen it in a new tab for a true fresh start. There are technical limitations making the use of large files difficult (let's say >100Mb might become unstable) but stay tuned as this technology is evolving FAST. The software has been tested on Chrome and Firefox, MS Edge should be fine as based on chromium and Safari can be randomly unstable and buggy.<br/><br/>Send feedback/questions to boris.gailleton@gfz-potsdam.de</p>
+				<h3>Change log</h3>
+				<div id="changelogdiv" style="overflow: auto; height:max(3cm); width: fit-content;">
+					<ul>
+						<li>Added dynamic log at the top of the screen</li>
+						<li>Added loads of logs</li>
+						<li>Load DEM with a button rather than on browse</li>
+						<li>Disabled reloading and added instructions</li>
+						<li>Added a replotting function that does not involve reloading the whole thing</li>
+						<li>Added change log</li>
+					</ul>
+				</div>
+				<button class="niceBtn" type="button" onclick="getElementById('instructions').style.display = 'none'">OK got it!</button>
+				<script>var div = document.getElementById('changelogdiv'); div.scrollTop = div.scrollHeight - div.clientHeight;</script>
 			</div>
 
 
@@ -40,6 +52,8 @@
 					<option value="NaA" selected="selected">...</option>
 					<!-- Load the DEM -->
 					<option value="loadDEM">Load DEM</option>
+					<!-- Replot the DEM -->
+					<option value="replotDEM">Reinitialise figure</option>
 					<!-- Extract rivers -->
 					<option value="riverExt">Extract River Network</option>
 				</select> 
@@ -60,7 +74,7 @@
 				<!-- Option for the flow preprocessing -->
 				<p>Default flow processing? <input type="checkbox" id="defaultCarvingCheck" checked> (Simulate carving to ensure flow routing, other options can be chosen in the action "preprocessing")</p>
 				<p>Hillshade transparency: <span id="valueOfalphaHSAtLoad"></span> <input type="range" id="alphaHSAtLoad" min="0" max="1" value="0.65" step="0.05"> (0: invisible, 1: only hillshade)</p>
-				<button class="niceBtn" type="button" id="OKbuttonloader">Load!</button>
+				<button class="niceBtn" type="button" id="OKbuttonloader">Load</button>
 
 				
 			</div>
@@ -69,6 +83,12 @@
 				<h3 style="color: red;">To loader another DEM, it is safer to reopen the WebApp in a new app at the moment, there are few technical limitations to Webassembly.</h3>
 				<p>Note that a future update will add the possibility to drape another raster on the DEM. But this is not a priority.</p>
 				<button class="niceBtn" type="button" id="OKbuttonloaderPost">OK</button>
+			</div>
+
+			<div  id="rePlotBase" class="analyser">
+				<h3>Replot the base topography and/or hillshade.</h3>
+				<p>Hillshade transparency: <span id="valueOfalphaHSAtLoad_replot"></span> <input type="range" id="alphaHSAtLoad_replot" min="0" max="1" value="0.65" step="0.05"> (0: invisible, 1: only hillshade)</p>
+				<button class="niceBtn" type="button" id="OkPlotButton">Plot</button>
 			</div>
 
 			<!-- Extracting river network -->

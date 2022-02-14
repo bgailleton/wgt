@@ -16,8 +16,9 @@ let checker = {
 }
 let idplotdiv = 'pyplotdiv'
 
-
+// Registering all kind of events to the different html buttons
 document.getElementById('OKbuttonloaderPost').addEventListener('click', dealWithLoaderPost);
+document.getElementById('OkPlotButton').addEventListener('click', replotTopoHs);
 
 // First I need to load pyodide engine
 load_piodide_and_initialise_wasm()

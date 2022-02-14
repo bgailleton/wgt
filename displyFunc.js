@@ -22,13 +22,13 @@ const displayTheRightAnalysis = function(event){
 	// Then checking which one is chosen
 	const analysis = event.target.value
 
-	if(analysis == "NaA")
+	if(analysis === "NaA")
 	{
 		displayChooser();
 		return
 	}
 
-	if(analysis == "loadDEM")
+	if(analysis === "loadDEM")
 	{
 		if(checker.demLoaded === true){
 			document.querySelector("#loaderPost").style.display = "inline-block";
@@ -40,7 +40,18 @@ const displayTheRightAnalysis = function(event){
 		return;
 	}
 
-	if(analysis == "riverExt")
+	if(analysis === 'replotDEM'){
+		if(checker.demLoaded === true){
+			document.querySelector("#rePlotBase").style.display = "inline-block";
+			return;
+		}
+		else{
+			addToLog("Need to load a DEM before replotting it yo.")
+			displayChooser();
+		}
+	}
+
+	if(analysis === "riverExt")
 	{
   	addToLog("Displaying River Extractor")
 		document.querySelector("#river_extraction").style.display = "inline-block";
@@ -52,10 +63,17 @@ const displayTheRightAnalysis = function(event){
 
 document.querySelector("#valueOfalphaHSAtLoad").innerHTML = document.querySelector("#alphaHSAtLoad").value
 
-document.querySelector("#alphaHSAtLoad").addEventListener('change',(event) => {
-	document.querySelector("#valueOfalphaHSAtLoad").innerHTML = document.querySelector("#alphaHSAtLoad").value
-	console.log("DFKPDSJFLSKHDJGHJKFGJKH")
+document.querySelector("#alphaHSAtLoad").addEventListener('input',(event) => {
+	let val = new Intl.NumberFormat('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(document.querySelector("#alphaHSAtLoad").value);
+	document.querySelector("#valueOfalphaHSAtLoad").innerHTML = val;
 } ); 
+
+document.querySelector("#valueOfalphaHSAtLoad_reload").innerHTML = document.querySelector("#alphaHSAtLoad_reload").value
+
+document.querySelector("#alphaHSAtLoad_reload").addEventListener('input',(event) => {
+	let val = new Intl.NumberFormat('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(document.querySelector("#alphaHSAtLoad_reload").value);
+	document.querySelector("#valueOfalphaHSAtLoad_reload").innerHTML = val;
+} );
 
 
 async function addToLog(txt){
