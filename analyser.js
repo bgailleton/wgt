@@ -112,12 +112,14 @@ const load_DEM = async function(){
 	mg.ingest_topo(dataCauldron.topo)
 	mg.set_default_boundaries("4edges")
 	mg.remove_seas(dataCauldron.seaLvl);
+	checker.demLoaded = true
+	checker.Acalc = false
 		
 	if(document.querySelector("#defaultCarvingCheck").value){
 		addToLog("Computing graph info and resoving depressions ...")
 		mg.compute_graph(paramCauldron.local_minima)
+		checker.preproc = true
 	}
-	checker.demLoaded = true
 
 	addToLog("DEM loaded and ready to go")
 
@@ -131,10 +133,41 @@ const extract_and_plot_river = async function(){
 	if(checker.demLoaded === false){
 		addToLog("Cannot extract rivers if no topography ingested. Please load or create DEM first.")
 	}
+	else if( checker.preproc === false){
+		addToLog("Cannot extract river network if the dem is not preprocessed for flow routines")
+	}
 	else
 	{
-		pyPlotter.riverPlot(dataCauldron);
+		const Ath = Number(document.querySelector("#AthRiverExtraction").value);
+		console.log("Ath is ", Ath)
+		dataCauldron.minsize = 1 
+		dataCauldron.maxsize = 5
+		dataCauldron.area_threshold = Number(Ath);
+		// Checking if the number is too small
+		if(dataCauldron.area_threshold < dataCauldron.dx * dataCauldron.dy * 20)
 
+		if(checker.Acalc === false){
+			mg.calculate_area();
+			checker.Acalc = true;
+		}
+		mg.d_sources(dataCauldron.area_threshold);
+		await mg.compute_river_nodes();
+
+		const tempN = mg.getNriv();
+		dataCauldron.nriv = null;
+		dataCauldron.nriv = tempN;
+		const tempX = mg.getXriv();
+		dataCauldron.xriv = null;
+		dataCauldron.xriv = tempX;
+		console.log(tempX)
+		const tempY = mg.getYriv();
+		dataCauldron.yriv = null;
+		dataCauldron.yriv = tempY;
+		const tempA = mg.getAriv();
+		dataCauldron.Ariv = null;
+		dataCauldron.Ariv = tempA;
+		// ok extracting rivers here
+		pyPlotter.riverPlot(dataCauldron.xriv,dataCauldron.yriv,dataCauldron.Ariv, 0.1, 2);
 	}
 	// displayChooser();
 }
@@ -144,7 +177,7 @@ const hillshade = async function(){
 	console.log("hillshade")
 	dataCauldron.HS = mg.get_HS()
 	// dataCauldron.HS = cArrayFloat32FromOffset(offset, dataCauldron.nx * dataCauldron.ny)
-	console.log(dataCauldron.HS)
+	// console.log(dataCauldron.HS)
 }
 
 const replotTopoHs = async function(){

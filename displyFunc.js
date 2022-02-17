@@ -54,6 +54,7 @@ const displayTheRightAnalysis = function(event){
 	if(analysis === "riverExt")
 	{
   	addToLog("Displaying River Extractor")
+  	document.querySelector('#AthRiverExtraction').value = 1e6;
 		document.querySelector("#river_extraction").style.display = "inline-block";
 		return;
 	}

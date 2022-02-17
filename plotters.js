@@ -9,6 +9,9 @@ const initpyPlot = function(){
 import matplotlib.pyplot as plt
 from js import document
 import numpy as np
+
+global_holder = {}
+
 fig, ax = plt.subplots()
 ax.set_xlabel("Easting")
 ax.set_ylabel("Northing")
@@ -90,9 +93,19 @@ toporePlot
 // FUnction managing the plotting of rivers
 const registerExtractRivers = function(pyPlotter){
 	pyPlotter.riverPlot = pyodide.runPython(`
-def riverPlot(dataCauldron):
+def riverPlot(X,Y,A, minsize, maxsize):
 
-	ax.scatter([0,4,67],[68,54,22])
+	if("scatter_riv" in global_holder.keys()):
+		global_holder["scatter_riv"].remove()
+		fig.canvas.show()
+
+	
+	size = np.asarray(A.to_py())
+	#print("4")
+	#size = np.log(size)
+	size = size/size.max()
+	size = (size) * (maxsize - minsize) + minsize
+	global_holder["scatter_riv"] = ax.scatter(np.asarray(X.to_py()), np.asarray(Y.to_py()), s = size, lw = 0, c = "blue")
 	
 	fig.canvas.show()
 
