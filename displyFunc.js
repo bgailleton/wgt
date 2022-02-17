@@ -64,15 +64,15 @@ const displayTheRightAnalysis = function(event){
 document.querySelector("#valueOfalphaHSAtLoad").innerHTML = document.querySelector("#alphaHSAtLoad").value
 
 document.querySelector("#alphaHSAtLoad").addEventListener('input',(event) => {
-	let val = new Intl.NumberFormat('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(document.querySelector("#alphaHSAtLoad").value);
+	let val = new Intl.NumberFormat('en-uk', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(document.querySelector("#alphaHSAtLoad").value);
 	document.querySelector("#valueOfalphaHSAtLoad").innerHTML = val;
 } ); 
 
-document.querySelector("#valueOfalphaHSAtLoad_reload").innerHTML = document.querySelector("#alphaHSAtLoad_reload").value
+document.querySelector("#valueOfalphaHSAtLoad_replot").innerHTML = document.querySelector("#alphaHSAtLoad_replot").value
 
-document.querySelector("#alphaHSAtLoad_reload").addEventListener('input',(event) => {
-	let val = new Intl.NumberFormat('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(document.querySelector("#alphaHSAtLoad_reload").value);
-	document.querySelector("#valueOfalphaHSAtLoad_reload").innerHTML = val;
+document.querySelector("#alphaHSAtLoad_replot").addEventListener('input',(event) => {
+	let val = new Intl.NumberFormat('en-uk', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(document.querySelector("#alphaHSAtLoad_replot").value);
+	document.querySelector("#valueOfalphaHSAtLoad_replot").innerHTML = val;
 } );
 
 
@@ -97,7 +97,11 @@ function dealWithLoaderPost(){
 
 
 
-
+function OKBtn(){
+	addToLog("Done with action, back to menu")
+	hideAn();
+	displayChooser();
+}
 
 
 

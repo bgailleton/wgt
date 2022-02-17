@@ -127,7 +127,7 @@ const load_DEM = async function(){
 
 
 const extract_and_plot_river = async function(){
-	hideAn();
+	// hideAn();
 	if(checker.demLoaded === false){
 		addToLog("Cannot extract rivers if no topography ingested. Please load or create DEM first.")
 	}
@@ -136,7 +136,7 @@ const extract_and_plot_river = async function(){
 		pyPlotter.riverPlot(dataCauldron);
 
 	}
-	displayChooser();
+	// displayChooser();
 }
 
 
@@ -148,11 +148,12 @@ const hillshade = async function(){
 }
 
 const replotTopoHs = async function(){
-	hideAn();
+	// hideAn();
 	dataCauldron.alphaHS = Number(document.querySelector("#alphaHSAtLoad_replot").value);
 	await pyPlotter.toporePlot(dataCauldron);
-	displayChooser();
+	// displayChooser();
 }
+
 
 
 // const 
