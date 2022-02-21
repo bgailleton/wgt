@@ -138,18 +138,27 @@ const extract_and_plot_river = async function(){
 	}
 	else
 	{
+
 		const Ath = Number(document.querySelector("#AthRiverExtraction").value);
 		console.log("Ath is ", Ath)
+
+		addToLog("Extracting rivers with a drainage area > " + Ath)
+
+
 		dataCauldron.minsize = 1 
 		dataCauldron.maxsize = 5
 		dataCauldron.area_threshold = Number(Ath);
 		// Checking if the number is too small
-		if(dataCauldron.area_threshold < dataCauldron.dx * dataCauldron.dy * 20)
+		// if(dataCauldron.area_threshold < dataCauldron.dx * dataCauldron.dy * 20)
 
+		// caluclating drainage area if needed
 		if(checker.Acalc === false){
+			addToLog("Calculating drainage area as it had not been done before")
 			mg.calculate_area();
+			addToLog("Drainage area calculated")
 			checker.Acalc = true;
 		}
+
 		mg.d_sources(dataCauldron.area_threshold);
 		await mg.compute_river_nodes();
 
@@ -166,6 +175,9 @@ const extract_and_plot_river = async function(){
 		const tempA = mg.getAriv();
 		dataCauldron.Ariv = null;
 		dataCauldron.Ariv = tempA;
+		addToLog(tempN + " pixels are definedd as rivers")
+
+		addToLog("Initiating the plotting")
 		// ok extracting rivers here
 		pyPlotter.riverPlot(dataCauldron.xriv,dataCauldron.yriv,dataCauldron.Ariv, 0.1, 2);
 	}
