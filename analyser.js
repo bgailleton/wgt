@@ -119,6 +119,9 @@ const load_DEM = async function(){
 		addToLog("Computing graph info and resoving depressions ...")
 		mg.compute_graph(paramCauldron.local_minima)
 		checker.preproc = true
+		mg.calculate_area();
+		addToLog("Drainage area calculated")
+		checker.Acalc = true;
 	}
 
 	addToLog("DEM loaded and ready to go")
