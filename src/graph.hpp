@@ -696,10 +696,10 @@ class Graph
 		void solve_depressions(std::string& depression_solver)
 		{
 			// std::cout << "cpp4.1" << std::endl;
-			Cordonnier2019<int,float> depsolver(*this, this->topography);
+			Cordonnier2019_v2<int,float> depsolver(*this);
 			// std::cout << "cpp4.2" << std::endl;
 
-			depsolver.update_receivers(depression_solver, this->topography);
+			depsolver.update_receivers(depression_solver);
 			// std::cout << "cpp4.3" << std::endl;
 		}
 
