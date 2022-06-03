@@ -697,9 +697,11 @@ class Graph
 		{
 			// std::cout << "cpp4.1" << std::endl;
 			Cordonnier2019_v2<int,float> depsolver(*this);
+			// Cordonnier2019<int,float> depsolver(*this, this->topography);
 			// std::cout << "cpp4.2" << std::endl;
 
 			depsolver.update_receivers(depression_solver);
+			// depsolver.update_receivers(depression_solver, this->topography);
 			// std::cout << "cpp4.3" << std::endl;
 		}
 
@@ -3572,7 +3574,7 @@ class Graph
 				}
 
 			}
-					std::cout << "Done" << std::endl;
+					// std::cout << "Done" << std::endl;
 
 			return emscripten::val{ emscripten::typed_memory_view(hillshade.size(), hillshade.data()) };
     

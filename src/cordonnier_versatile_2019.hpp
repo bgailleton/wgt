@@ -26,6 +26,9 @@ This header file extends the graph to provide routines to process depressions us
 class Graph;
 
 template<class n_t, class dist_t>
+class Cordonnier2019_v2;
+
+template<class n_t, class dist_t>
 class Link
 {
 public:
@@ -45,7 +48,15 @@ public:
 		this->node_to = node_to;
 	}
 
-	void inverse(){*this = Link(this->to,this->from,this->node_to,this->node_from,this->score);}
+	void inverse()
+	{
+		auto temp = Link(this->to,this->from,this->node_to,this->node_from,this->score); 
+		this->to = temp.to;
+		this->from = temp.from;
+		this->node_to = temp.node_to;
+		this->node_from = temp.node_from;
+		this->score = temp.score;
+	}
 
 	bool is_bas_in(int bas){return (bas == this->from || bas == this->to) ? true : false;}
 
@@ -112,6 +123,70 @@ class UnionFind
 
 
 template<class n_t, class dist_t>
+class UnionFindv2
+{
+	public:
+		UnionFindv2(int size,Cordonnier2019_v2<n_t,dist_t> &cod )
+		{
+			this->cod = &cod;
+			this->_parent = std::vector<int>(size);
+			this->_open = std::vector<bool>(size);
+			for(int i=0; i<size; i++)
+			{
+				this->_parent[i] = i;
+				this->_open[i] = this->cod->is_open_basin[i];
+			}
+			this->_rank = std::vector<int>(size,0);
+		};
+
+		void Union(int& x, int& y)
+		{
+			int xroot = this->Find(x);
+			int yroot = this->Find(y);
+
+			if (xroot != yroot)
+			{
+				if(this->_rank[xroot] < this->_rank[yroot])
+						this->_parent[xroot] = yroot;
+				else
+				{
+					this->_parent[yroot] = xroot;
+					if(this->_rank[xroot] == this->_rank[yroot])
+						this->_rank[xroot] ++;
+				}
+
+				if(this->_open[xroot] || this->_open[yroot])
+				{
+					this->_open[xroot] = true;
+					this->_open[yroot] = true;
+				}
+			}
+		}
+
+		int Find(int& x)
+		{
+			int xp = x,xc;
+			while (true)
+			{
+				xc = xp;
+				xp = this->_parent[xc];
+				if (xp == xc)
+					break;
+			}
+			this->_parent[x] = xc;
+			return xc;
+		}
+
+		std::vector<int> _parent;
+		std::vector<int> _rank;
+		std::vector<bool> _open;
+		Cordonnier2019_v2<n_t,dist_t> *cod;
+
+
+};
+
+
+template<class n_t, class dist_t>
 class Cordonnier2019
 {
 
@@ -135,16 +210,11 @@ class Cordonnier2019
 		Cordonnier2019(){;};
 		Cordonnier2019(Graph& graph, std::vector<dist_t>& elevation)
 		{
-			std::cout << "wololo-2" << std::endl;
 
 			sleep(1);
-			std::cout << "wololo-1" << std::endl;
 			this->graph = &graph;
-			std::cout << "wololo0" << std::endl;
 			this->compute_basins_and_pits();
-			std::cout << "wololo1" << std::endl;
 			this->preprocess_flowrouting(elevation);
-			std::cout << "wololo2" << std::endl;
 
 		}
 
@@ -154,18 +224,14 @@ class Cordonnier2019
 				this->_update_pits_receivers_sompli(this->conn_basins, this->conn_nodes, mstree, elevation);
 			else if (method == "carve")
 			{
-				std::cout << "karper" << std::endl;
 				this->_update_pits_receivers_carve(this->conn_basins, this->conn_nodes, mstree, elevation);
-				std::cout << "ski" << std::endl;
 			}
 			else if (method == "fill")
 			{
 				// std::cout << "gwamoulg" << std::endl;
 				this->_update_pits_receivers_fill(this->conn_basins, this->conn_nodes, mstree, elevation);
 			}
-			std::cout << "fabul" << std::endl;
 			this->graph->recompute_SF_donors_from_receivers();
-			std::cout << "fabudl" << std::endl;
 		}
 
 		// Uses the stack structure to build a quick basin array
@@ -233,9 +299,7 @@ class Cordonnier2019
 	 	}
 
 		int nconn, basin0;
-		std::cout << "connect basins" << std::endl;
 		this->_connect_basins(this->conn_basins, this->conn_nodes, conn_weights, elevation, nconn, basin0);
-		std::cout << "connect bagul" << std::endl;
 		
 		int scb = nconn, scn = nconn, scw = nconn;
 
@@ -581,6 +645,8 @@ class Cordonnier2019
 			// int i = mstree[ti];
 			int node_to = this->conn_nodes[i][0];
 			int node_from = this->conn_nodes[i][1];
+			int onode_to = this->conn_nodes[i][0];
+			int onode_from = this->conn_nodes[i][1];
 			int outlet_from = this->basin_to_outlets[conn_basins[i][1] ];
 
 			if(pitdone[this->basin_labels[outlet_from]])
@@ -624,8 +690,8 @@ class Cordonnier2019
 
 
 
-			this->graph->receivers[this->conn_nodes[i][1]] = node_to;
-			this->graph->distance2receivers[this->conn_nodes[i][1]] = this->graph->dx; // just to have a length but it should not actually be used
+			this->graph->receivers[onode_from] = onode_to;
+			this->graph->distance2receivers[onode_from] = this->graph->dx; // just to have a length but it should not actually be used
 		}
 		
 	}
@@ -696,15 +762,18 @@ public:
 
 	// Labelling the watersheds
 	std::vector<n_t> basin_labels;
+	std::vector<bool> is_open_basin;
 	std::vector<n_t> basin_to_outlets;
 	std::vector<n_t> pits_to_reroute;
 	std::vector<n_t> mstree;
-	std::vector<n_t> receivers, stack, nodes_to, nodes_from, outlets_from;
+	std::vector<n_t> receivers, nodes_to, nodes_from, outlets_from;
 	std::vector<std::vector<n_t> > donors;
+
+	std::vector< Link<n_t, dist_t>* > stack;
 
 
 	std::vector<Link<n_t, dist_t> > active_links;
-	std::vector< std::vector< *Link<n_t, dist_t> > > bas2links;
+	std::vector< std::vector< Link<n_t, dist_t>* > > bas2links;
 	std::priority_queue<Link<n_t, dist_t>, std::vector<Link<n_t, dist_t>>, std::greater<Link<n_t, dist_t> > > pqlinks;
 
 
@@ -718,20 +787,15 @@ public:
 	Cordonnier2019_v2(Graph& graph)
 	{
 		this->graph = &graph;
-		std::cout << "Compute basepit" << std::endl;
 		this->compute_basins_and_pits();
 		this->preprocess_flowrouting();
 	}
 
 	void preprocess_flowrouting()
 	{
-		std::cout << "Compute links" << std::endl;
 		this->_compute_links();
-		std::cout << "Kurskal" << std::endl;
 		this->_compute_mst_kruskal();
-		std::cout << "btree links" << std::endl;
 		this->_orient_basin_tree();
-		std::cout << "dolone" << std::endl;
 	}
 
 	// Uses the stack structure to build a quick basin array
@@ -756,13 +820,17 @@ public:
 				if(this->graph->can_flow_out_there(tnode) == false)
 				{
 					this->pits_to_reroute.emplace_back(tnode);
+					this->is_open_basin.emplace_back(false);
 					this->npits++;
 				}
+				else
+					this->is_open_basin.emplace_back(true);
+
 
 			}
 
-			if(lab == -1)
-				throw std::runtime_error("flonflon?");
+			// if(lab == -1)
+			// 	throw std::runtime_error("flonflon?");
 
 			this->basin_labels[tnode] = lab;
 		
@@ -775,8 +843,11 @@ public:
 	{
 
 		// Initialising a matrix of links for each basins in order to stor the minimum elevation links between each pair of basins
-		std::vector<std::vector<dist_t> > mat_of_scores(this->nbasins,std::vector<dist_t>(this->nbasins,std::numeric_limits<dist_t>::max()));
-		std::vector<std::vector<std::vector<n_t> > > mat_of_nodes(this->nbasins,std::vector<std::vector<n_t> >(this->nbasins));
+		// std::vector<std::vector<dist_t> > mat_of_scores(this->nbasins,std::vector<dist_t>(this->nbasins,std::numeric_limits<dist_t>::max()));
+		// std::vector<std::vector<std::vector<n_t> > > mat_of_nodes(this->nbasins,std::vector<std::vector<n_t> >(this->nbasins));
+
+		std::map<int, std::map<int,dist_t > > mat_of_scores;
+		std::map<int, std::map<int, std::vector<n_t> > > mat_of_nodes;
 
 		for(int i=0; i<this->graph->nnodes; ++i)
 		{
@@ -790,13 +861,35 @@ public:
 			{
 				if(this->graph->can_flow_even_go_there(tn) == false)
 					continue;
+
 				int obas = this->basin_labels[tn];
 				if(tbas != obas)
 				{
+
+					if(this->is_open_basin[tbas] && this->is_open_basin[obas])
+						continue;
+
 					dist_t score = std::min(telev, this->graph->topography[tn]);
 					int basA = (tbas > obas) ? obas : tbas;
 					int basB = (tbas > obas) ? tbas : obas;
-					if(mat_of_scores[basA][basB] > score)
+
+					bool isinmap = mat_of_scores.count(basA) > 0;
+					if(isinmap)
+						isinmap = mat_of_scores[basA].count(basB) > 0;
+
+					bool need = false;
+					if(isinmap)
+					{
+						if(mat_of_scores[basA][basB] > score)
+						{
+							need = true;
+						}
+					}
+					else
+						need = true;
+
+
+					if(need)
 					{
 						if(basA == tbas)
 						{
@@ -810,59 +903,89 @@ public:
 						}
 
 						mat_of_scores[basA][basB] = score;
-						// std::cout << "happens??" << std::endl;
-
 					}
 				}
 			}
 		}
 
-		dist_t maxval = std::numeric_limits<dist_t>::max();
-		for(int i = 0; i < this->nbasins;++i)
+		for (auto it=mat_of_scores.begin(); it!=mat_of_scores.end(); ++it)
 		{
-			for(int j=0; j<this->nbasins;++j)
+			int basA = it->first;
+			for (auto it2=mat_of_scores[basA].begin(); it2!=mat_of_scores[basA].end(); ++it2)
 			{
-
-				if(j <= i)
-					continue;
-
-				if(mat_of_scores[i][j] ==	maxval)
-					continue;
-
-				this->pqlinks.emplace(Link<n_t,dist_t>(i,j,mat_of_nodes[i][j][0],mat_of_nodes[i][j][1],mat_of_scores[i][j]));
+				int basB = it2->first;
+				dist_t score = it2->second;
+				this->pqlinks.emplace(Link<n_t,dist_t>(basA,basB,mat_of_nodes[basA][basB][0],mat_of_nodes[basA][basB][1],score));
 			}
+
+
+			
+
 		}
+
+		// dist_t maxval = std::numeric_limits<dist_t>::max();
+		// for(int i = 0; i < this->nbasins;++i)
+		// {
+		// 	for(int j=0; j<this->nbasins;++j)
+		// 	{
+
+		// 		if(j <= i)
+		// 			continue;
+
+		// 		if(mat_of_scores[i][j] ==	maxval)
+		// 			continue;
+
+		// 		this->pqlinks.emplace(Link<n_t,dist_t>(i,j,mat_of_nodes[i][j][0],mat_of_nodes[i][j][1],mat_of_scores[i][j]));
+		// 		// std::cout << "LIIINK::"<<i << "|" << j << std::endl;
+		// 	}
+		// }
 
 	}
 
 	void _compute_mst_kruskal()
 	{
 		// this->mstree = std::vector<n_t>(this->nbasins - 1);
-		this->bas2links = std::vector< std::vector< *Link<n_t, dist_t> > >( this->nbasins, std::vector< *Link<n_t, dist_t> >() );
+		this->bas2links = std::vector< std::vector< Link<n_t, dist_t>* > >( this->nbasins, std::vector< Link<n_t, dist_t>* >() );
 		int mstree_size = 0;
 
-		UnionFind uf(nbasins);
+		UnionFindv2<n_t,dist_t> uf(nbasins, (*this) );
+		int j = 0;
 
 		while(this->pqlinks.empty() == false)
 		{
 			auto next = this->pqlinks.top();
 			this->pqlinks.pop();
 
-
 			int b0 = next.from;
 			int b1 = next.to;
-			std::cout << "b0->" << b0 << std::endl;;
-
-			if (uf.Find(b0) != uf.Find(b1))
+			int fb0 = uf.Find(b0);
+			int fb1 = uf.Find(b1) ;
+			if (fb0 != fb1)
 			{
-				// mstree[mstree_size] = eid;
-				// mstree_size ++;
+
+				if(uf._open[fb0] && uf._open[fb1])
+					continue;
+				// std::cout << "GOUGN::" << b0 << "|" << b1 << "|" << this->nbasins << std::endl;
+				
 				uf.Union(b0, b1);
 				this->active_links.emplace_back(next);
-				this->bas2links[b0].emplace_back(&this->active_links.back());
-				this->bas2links[b1].emplace_back(&this->active_links.back());
+				++j;
 			}
 		}
+
+		for(size_t i = 0; i < this->active_links.size(); ++i)
+		{
+			this->bas2links[this->active_links[i].from].emplace_back(&this->active_links[i]);
+			this->bas2links[this->active_links[i].to].emplace_back(&this->active_links[i]);
+		}
+
+		// for (int tb = 0 ; tb < this->nbasins; ++tb)
+		// for(size_t j=0; j<this->bas2links[tb].size(); ++j)
+		// {
+		// 	if(this->bas2links[tb][j]->from >= this->nbasins || this->bas2links[tb][j]->to >= this->nbasins)
+		// 			throw std::runtime_error("waffon2");
+		// }
+
 	}
 
 	void _orient_basin_tree()
@@ -876,22 +999,25 @@ public:
 
 		std::vector<bool> isdone(this->nbasins,false);
 
-		std::cout << "here::" << this->active_links.size() << std::endl;		
+
+
+		// std::cout << "here::" << this->active_links.size() << std::endl;		
 		for(int i = this->active_links.size() - 1; i >= 0; --i)
 		{
 			// getting the link
-			auto& tlink = this->active_links[i];
+			// auto& tlink = this->active_links[i]; 
 
-			if(this->graph->can_flow_out_there(this->basin_to_outlets[tlink.from]) == false && this->graph->can_flow_out_there(this->basin_to_outlets[tlink.to]) == false)
+			if(this->is_open_basin[this->active_links[i].from] == false && this->is_open_basin[this->active_links[i].to] == false)
 				continue;
 
-			if(this->graph->can_flow_out_there(this->basin_to_outlets[tlink.to]) == false)
-				tlink.inverse();
-
-			isdone[tlink.to] = true;
+			if(this->is_open_basin[this->active_links[i].from])
+			{
+				// std::cout << "BOULOUF" << std::endl;
+				this->active_links[i].inverse();
+			}
 
 			std::stack<int, std::vector<int> > stackhelper;
-			stackhelper.emplace(tlink.from);
+			stackhelper.emplace(this->active_links[i].to);
 
 			while(stackhelper.empty() == false)
 			{
@@ -901,176 +1027,35 @@ public:
 				stackhelper.pop();
 				for(auto ptr: this->bas2links[next])
 				{
+					// std::cout << "Wafulb1::" << ptr->from << "|" << ptr->to << std::endl;
 					if(ptr->from == next)
 					{
 						if(isdone[ptr->to] == false)
 						{
 							stackhelper.emplace(ptr->to);
 							ptr->inverse();
+							// if(isdone[ptr->from] == false)
+							// {
+								// std::cout << "STACKADD1" << std::endl;
+								this->stack.emplace_back(ptr);
+								// std::cout << this->is_open_basin[ptr->from] << "||" << this->is_open_basin[ptr->to] << std::endl;
+								isdone[ptr->from] = true;
+							// }
 						}
 					}
 					else if(isdone[ptr->from] == false)
+					{
 						stackhelper.emplace(ptr->from);
+						if(isdone[ptr->from] == false)
+						{
+							// std::cout << "STACKADD2" << std::endl;
+							this->stack.emplace_back(ptr);
+							isdone[ptr->from] = true;
+						}
+					}
 				}
 			}
 		}
-
-
-
-
-
-		// 	std::cout << i << "::" << tlink.node_from << "|" << tlink.node_to << std::endl;
-		// 	if(this->graph->can_flow_out_there(tlink.node_from) == false && this->graph->can_flow_out_there(tlink.node_to) == false)
-		// 	{
-		// 		if(this->receivers[tlink.from] != -1)
-		// 		{
-		// 			this->receivers[tlink.to] = tlink.from;
-		// 			this->nodes_to[tlink.to] = tlink.node_from;
-		// 			this->nodes_from[tlink.to] = tlink.node_to;
-		// 			this->outlets_from[tlink.to] = this->basin_to_outlets[tlink.to];
-		// 		}
-		// 		else if (this->receivers[tlink.to] != -1)
-		// 		{
-		// 			this->receivers[tlink.from] = tlink.to;
-		// 			this->nodes_to[tlink.from] = tlink.node_to;
-		// 			this->nodes_from[tlink.from] = tlink.node_from;
-		// 			this->outlets_from[tlink.from] = this->basin_to_outlets[tlink.from];
-		// 		}
-		// 		else
-		// 			throw std::runtime_error("Erm, did not work...");
-		// 	}
-
-		// 	else
-		// 	{
-		// 		if(this->graph->can_flow_out_there(tlink.from))
-		// 		{
-		// 			this->receivers[tlink.from] = tlink.from;
-		// 			this->receivers[tlink.to] = tlink.from;
-
-		// 			this->outlets_from[tlink.from] = this->basin_to_outlets[tlink.from];
-		// 			this->outlets_from[tlink.to] = this->basin_to_outlets[tlink.to];
-
-		// 		}
-		// 		else
-		// 		{
-		// 			this->receivers[tlink.to] = tlink.to;
-		// 			this->receivers[tlink.from] = tlink.to;
-		// 			this->receivers[tlink.from] = tlink.to;
-		// 			this->nodes_to[tlink.from] = tlink.node_to;
-		// 			this->nodes_from[tlink.from] = tlink.node_from;
-		// 			this->outlets_from[tlink.from] = this->basin_to_outlets[tlink.from];
-		// 			this->outlets_from[tlink.to] = this->basin_to_outlets[tlink.to];
-		// 		}
-
-		// 	}
-		// }
-
-		// for(int i=0; i< this->nbasins; ++i)
-		// {
-		// 	if(this->receivers[i] == i)
-		// 		continue;
-		// 	this->donors[this->receivers[i]].emplace_back(i);
-		// }
-
-
-		// this->compute_TO_SF_stack_version();
-
-
-
-		// // # nodes connections
-		// std::vector<int> nodes_connects_size(this->nbasins,0);
-		// std::vector<int> nodes_connects_ptr(this->nbasins);
-
-		// // # parse the edges to compute the number of edges per node
-		// for (auto i : tree)
-		// {
-		// 	nodes_connects_size[ this->conn_basins[i][0] ]++;
-		// 	nodes_connects_size[ this->conn_basins[i][1] ]++;
-		// }
-
-		// // # compute the id of first edge in adjacency table
-		// nodes_connects_ptr[0] = 0;
-
-		// //lsdkfjlsjd
-		// // gruklb.
-		// for (int i = 1; i < nbasins; i++)
-		// {
-		// 	nodes_connects_ptr[i] = (nodes_connects_ptr[i - 1] + nodes_connects_size[i - 1]);
-		// 	nodes_connects_size[i - 1] = 0;
-		// }
-
-		// // # create the adjacency table
-		// int nodes_adjacency_size = nodes_connects_ptr[nbasins - 1] + nodes_connects_size[nbasins - 1];
-		// nodes_connects_size[this->nbasins -1] = 0;
-		// std::vector<int> nodes_adjacency(nodes_adjacency_size,0);
-
-		// // # parse the edges to update the adjacency
-		// for (auto i : tree)
-		// {
-
-		// 	int n1 = this->conn_basins[i][0];
-		// 	int n2 = this->conn_basins[i][1];
-		// 	nodes_adjacency[nodes_connects_ptr[n1] + nodes_connects_size[n1]] = i;
-		// 	nodes_adjacency[nodes_connects_ptr[n2] + nodes_connects_size[n2]] = i;
-		// 	nodes_connects_size[n1] ++;
-		// 	nodes_connects_size[n2] ++;
-		// }
-
-
-		// // # depth-first parse of the tree, starting from basin0
-		// // # stack of node, parent
-		// std::vector<std::vector<n_t> > stack; stack.reserve(nbasins);
-		// for(int i=0; i < nbasins; i++)
-		// 	stack.emplace_back(std::vector<n_t>({-2,-2}));
-
-
-		// int stack_size = 1;
-		// stack[0][0] = basin0;// (basin0, basin0)
-		// stack[0][1] = basin0;
-
-		// int n_turn = 0;
-		// while (stack_size > 0)
-		// {
-		// 	n_turn++;
-		// 	// # get parsed node
-		// 	stack_size = stack_size - 1;
-		// 	int node = stack[stack_size][0];
-		// 	int parent = stack[stack_size][1];
-
-		// 	// # for each edge of the graph
-		// 	// for i in range(nodes_connects_ptr[node], nodes_connects_ptr[node] + nodes_connects_size[node])
-		// 	for( int i = nodes_connects_ptr[node]; i < (nodes_connects_ptr[node] + nodes_connects_size[node]); i++) 
-		// 	{
-		// 		int edge_id = nodes_adjacency[i];
-
-		// 		// # the edge comming from the parent node has already been updated.
-		// 		// # in this case, the edge is (parent, node)
-		// 		if (this->conn_basins[edge_id][0] == parent && node != parent)
-		// 		{
-		// 				continue;
-		// 		}
-		// 		// # we want the edge to be (node, next)
-		// 		// # we check if the first node of the edge is not "node"
-		// 		if(node != this->conn_basins[edge_id][0])
-		// 		{
-		// 			// # swap n1 and n2
-		// 			int cb1 = this->conn_basins[edge_id][1];
-		// 			int cb0 = this->conn_basins[edge_id][0];
-		// 			this->conn_basins[edge_id][0] = cb1;
-		// 			this->conn_basins[edge_id][1] = cb0;
-
-		// 			cb1 = this->conn_nodes[edge_id][1];
-		// 			cb0 = this->conn_nodes[edge_id][0];
-		// 			// # swap p1 and p2
-		// 			this->conn_nodes[edge_id][0] = cb1;
-		// 			this->conn_nodes[edge_id][1] = cb0;
-		// 		}
-		// 		// # add the opposite node to the stack
-		// 		stack[stack_size][0] = this->conn_basins[edge_id][1];
-		// 		stack[stack_size][1] = node;
-		// 		stack_size ++;
-		// 	}
-		// }
 
 	}
 
@@ -1125,41 +1110,82 @@ public:
 	void _update_pits_receivers_carve()
 	{
 
-		for(auto i : this->active_links)
+		// std::cout <<"ID,rfrom,cfrom,rto,cto,rout,cout" << std::endl;
+			
+		// int lab=0;
+		for(int i=this->stack.size() - 1; i >=0 ; --i)
+		// for(int i=0;  i<this->stack.size(); ++i)
 		{
-			// int i = mstree[ti];
-			int node_to = i.node_to;
-			int node_from = i.node_from;
-			int outlet_from = this->basin_to_outlets[i.from];
 
-			// // # skip open basins
-			// if (this->is_open(i))
+			auto tlink = this->stack[i];
+			// int i = mstree[ti];
+			int node_to = tlink->node_to;
+			int node_from = tlink->node_from;
+			int onode_to = tlink->node_to;
+			int onode_from = tlink->node_from;
+			int outlet_from = this->basin_to_outlets[tlink->from];
+
+			// if(this->graph->can_flow_out_there(outlet_from))
 			// {
+			// 	std::cout << "OUT??" << this->graph->can_flow_out_there(this->basin_to_outlets[this->basin_labels[node_to]]) << "|" << this->graph->can_flow_out_there(this->basin_to_outlets[this->basin_labels[node_from]]) << std::endl;
 			// 	continue;
 			// }
 
+			int rowf,colf,rowt,colt, rowo, colo;
+			// this->graph->rowcol_from_node_id(node_from,rowf,colf);
+			// this->graph->rowcol_from_node_id(node_to,rowt,colt);
+			// this->graph->rowcol_from_node_id(outlet_from,rowo,colo);
+			// std::cout << lab <<"," <<rowf <<"," <<colf <<"," << rowt<<"," <<colt <<"," << rowo<<"," << colo << std::endl;
+			// lab++;
+
+
 			int next_node = this->graph->receivers[node_from];
-			// if(next_node == node_from)
-			// 	std::cout << "WABUL WABUL YOLO" << std::endl;
 			int temp = node_from;
 			bool keep_on = true;
 			do
 			{
+
+				// int this_row,this_col, this_rfrom, this_cfrom;
+				// this->graph->rowcol_from_node_id(next_node, this_row, this_col);
+				// this->graph->rowcol_from_node_id(node_from, this_rfrom, this_cfrom);
+
+				// std::cout << "This Rerouting " << this_row << "/" <<this_col << " to " << this_rfrom << "/" << this_cfrom << std::endl;
+
+
 				if(next_node == outlet_from)
+				{
 					keep_on = false;
+				}
+
 
 				temp = this->graph->receivers[next_node];
+
+				// if(viz[temp])
+				// {
+				// 	std::cout << "CYCLICITY ON LINK:" << std::endl;
+				// 	std::cout << tlink->from << " to " << tlink->to << std::endl;;
+				// 	std::cout << rowf << "|" << colf << " to " << rowt << "|" << colt  << std::endl;;
+				// 	throw std::runtime_error("asdfasdfsadfasdf");
+				// }
+				// viz[next_node] = true;
+
+				// if(temp == next_node || this->graph->can_flow_out_there(next_node))
+				// 	keep_on = false;
+
 				this->graph->receivers[next_node] = node_from;
 				this->graph->distance2receivers[next_node] = this->graph->distance2receivers[node_from]; // just to have a length but it should not actually be used
 				node_from = next_node;
 				next_node = temp;
-				// std::cout << next_node << "|";
 			} while(keep_on);
 
 
 
-			this->graph->receivers[node_from] = node_to;
-			this->graph->distance2receivers[node_from] = this->graph->dx; // just to have a length but it should not actually be used
+			this->graph->receivers[onode_from] = onode_to;
+			this->graph->distance2receivers[onode_from] = this->graph->dx; // just to have a length but it should not actually be used
+
+			this->graph->rowcol_from_node_id(onode_from,rowf,colf);
+			this->graph->rowcol_from_node_id(onode_to,rowt,colt);
+			// std::cout << "Final Rerouting " << rowf << "/" <<colf << " to " << rowt << "/" << colt << std::endl;
 		}
 		
 	}
@@ -1177,9 +1203,7 @@ public:
 		// 	this->_update_pits_receivers_sompli(this->conn_basins, this->conn_nodes, mstree, elevation);
 		// else if (method == "carve")
 		// {
-		// 	std::cout << "karper" << std::endl;
 			this->_update_pits_receivers_carve();
-		// 	std::cout << "ski" << std::endl;
 		// }
 		// else if (method == "fill")
 		// {
