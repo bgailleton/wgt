@@ -1191,6 +1191,90 @@ public:
 	}
 
 
+
+	void _update_pits_receivers_sompli()
+	{
+		// for i in mstree:
+		for(int i=this->stack.size() - 1; i >=0 ; --i)
+		{
+
+			auto tlink = this->stack[i];
+
+
+			int node_to = tlink->node_to;
+			int node_from = tlink->node_from;
+
+			// # skip open basins
+			if (node_from == -1)
+			{
+					continue;
+			}
+
+			// int outlet_from = this->basin_to_outlets[conn_basins[i][1] ];
+			int outlet_from = this->basin_to_outlets[tlink->from];
+
+			this->graph->receivers[outlet_from] = node_to;
+			this->graph->distance2receivers[outlet_from] = this->graph->dx; // just to have a length but it should not actually be used
+		}
+
+	 
+	}
+
+	void _update_pits_receivers_fill()
+	{
+		// for i in mstree:
+		// std::cout <<"yolo";
+		std::vector<bool> isdone(this->graph->nnodes_t,false);
+		for(int i=this->stack.size() - 1; i >=0 ; --i)
+		// for(int i=0;  i<this->stack.size(); ++i)
+		{
+
+			auto tlink = this->stack[i];
+			// int i = mstree[ti];
+			int node_to = tlink->node_to;
+			int node_from = tlink->node_from;
+			int onode_to = tlink->node_to;
+			int onode_from = tlink->node_from;
+			int outlet_from = this->basin_to_outlets[tlink->from];
+
+			int tg_bas = this->basin_labels[node_from];
+
+
+			// # skip open basins
+			if (node_from == -1)
+			{
+					continue;
+			}
+			// std::cout << "rec nodde_from beef " << this->graph->receivers[node_from];;
+			float otopo = std::fmax(this->graph->topography[node_to],this->graph->topography[node_from]);
+			std::queue<int> yonode;
+			yonode.push(node_to);
+			while(yonode.size() > 0)
+			{
+				int tnode = yonode.front(); yonode.pop();
+	 			auto neighbours = this->graph->get_neighbours(tnode, false);
+				for(auto& ineighbor:neighbours)
+				{
+					if(this->graph->can_flow_even_go_there(ineighbor.node) == false || tg_bas != this->basin_labels[ineighbor.node] || isdone[ineighbor.node] == true)
+						continue;
+
+					if(this->graph->topography[ineighbor.node] <= otopo)
+					{
+						// std::cout << ineighbor.node << "<--" << tnode << "|||";
+						this->graph->receivers[ineighbor.node] = tnode;
+						this->graph->distance2receivers[ineighbor.node] = ineighbor.distance;
+						yonode.push(ineighbor.node);
+						isdone[ineighbor.node] = true;
+					}
+				}
+
+			}
+		}
+		
+	}
+
+
+
 	// bool is_open(int i)
 	// {
 	// 	return this->graph->can_flow_out_there(this->outlets_from[i]);
@@ -1199,17 +1283,17 @@ public:
 
 	void update_receivers(std::string& method)
 	{
-		// if(method == "simple" || method == "Simple")
-		// 	this->_update_pits_receivers_sompli(this->conn_basins, this->conn_nodes, mstree, elevation);
-		// else if (method == "carve")
-		// {
+		if(method == "simple" || method == "Simple")
+			this->_update_pits_receivers_sompli();
+		else if (method == "carve")
+		{
 			this->_update_pits_receivers_carve();
-		// }
-		// else if (method == "fill")
-		// {
-		// 	// std::cout << "gwamoulg" << std::endl;
-		// 	this->_update_pits_receivers_fill(this->conn_basins, this->conn_nodes, mstree, elevation);
-		// }
+		}
+		else if (method == "fill")
+		{
+			// std::cout << "gwamoulg" << std::endl;
+			this->_update_pits_receivers_fill();
+		}
 		// std::cout << "fabul" << std::endl;
 		this->graph->recompute_SF_donors_from_receivers();
 		// std::cout << "fabudl" << std::endl;
