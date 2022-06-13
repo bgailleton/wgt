@@ -226,12 +226,24 @@ public:
 		std::vector<float> fdo;
 		std::vector<float> maxAper_basins;
 		std::vector<float> distance2river;
+		std::vector<float> Scs;
 		if(this->hillslope_mode ==2)
 		{
 			this->graph.d_sources(this->labels[0].Acrit);
 			this->graph.compute_river_nodes();
 			distance2river = this->graph.compute_graph_distance_from_rivers();
 			// distance2river = this->graph.compute_distance_to_nodes(this->graph.river_nodes,1e32);
+		}
+
+		else if (this->hillslope_mode == 3)
+		{
+			Scs = std::vector<float>(this->graph.nnodes,0.2);
+			// for(int i=0; i<this->graph.nnodes; ++i)
+			// {
+			// 	int label = (this->paramode == 0) ? 0:this->labelarray[i];
+			// 	Label& tlab = this->labels[label];
+			// 	Scs[i] = tlab.S_c;
+			// }
 		}
 
 		std::vector<bool> needreplace(this->graph.nnodes, false);
@@ -279,7 +291,7 @@ public:
 			// Stpping here if flow opti or base level checkers tells so
 			if(rec == node || this->graph.can_flow_out_there(node))
 			{
-				this->graph.topography[node] = 0;
+				// this->graph.topography[node] = 0;
 				continue;
 			}
 
@@ -300,6 +312,7 @@ public:
 
 			bool hillslopeSc = false;
 			bool hillslopeLin = false;
+			bool hillslopeExp = false;
 			bool fluvialSPL = false;
 			// checking which stuff to process
 			if(this->hillslope_mode == 1)
@@ -312,6 +325,12 @@ public:
 				if(this->graph.area[node] < tlab.Acrit)
 					hillslopeLin = true;
 			}
+			else if(this->hillslope_mode == 3)
+			{
+				if(this->graph.area[node] < tlab.Acrit)
+					hillslopeExp = true;
+			}
+
 			if(this->fluvial_mode > 0)
 			{
 				fluvialSPL = true;
@@ -325,6 +344,16 @@ public:
 			else if(hillslopeLin)
 			{
 				this->node_solve_linear_diffusion(node, rec, tU, tlab.alpha_D, distance2river);
+			}
+			else if(hillslopeExp)
+			{
+				auto tSc = Scs[rec];
+				if(tSc <= 0.6)
+					tSc += 0.001;
+				else
+					tSc -= 0.001;
+				this->node_solve_critical_slope(node, rec, tSc);
+				Scs[node] = tSc;
 			}
 			// process fluvial if fluvial
 			else if (fluvialSPL)
@@ -349,6 +378,8 @@ public:
 		}
 
 	}
+
+	// void experimental_downstuff()
 
 	void experimental_island(float beach_distance, float blurA)
 	{
@@ -617,6 +648,8 @@ public:
 			this->hillslope_mode = 1;
 		else if (mode == "linear")
 			this->hillslope_mode = 2;
+		else if (mode == "experimental")
+			this->hillslope_mode = 3;
 		else
 			throw std::runtime_error("Unknow hillslope mode, needs to be one of 'none' or 'critical_slope' .");
 
@@ -746,6 +779,63 @@ public:
 
 		}
 
+	}
+
+
+	void init_boundaries_from_binary_array(std::vector<bool> barr, bool edges_base_level = true)
+	{
+		// Error checking
+		if(barr.size() != this->graph.nnodes_t)
+			throw std::runtime_error("The input boundaries need to be the same dimention as the graph");
+
+		// Init all the boundaries to -1 (no data, no flow)
+		this->graph.boundary = std::vector<int>(this->graph.nnodes,-1);
+		
+		// Cheecking every nodes
+		for(int i=0; i<this->graph.nnodes; ++i)
+		{
+			if(barr[i] == false)
+			{
+				// if mask is false: no flow
+				this->graph.boundary[i] = -1;
+				continue;
+			}
+			// Else normal flow
+			this->graph.boundary[i] = 1;
+
+			// If I need to check dem edges, I assign base level if the node is on dem edge
+			if(edges_base_level)
+			{
+				if(this->graph.is_on_dem_edge(i))
+				{
+					this->graph.boundary[i] = 0;
+					continue;
+				}
+			}
+
+			// Otherwise, if any of the neighbour is a no data
+			auto neighbours = this->graph.get_neighbours_only_id(i);
+
+			for(auto tn:neighbours)
+			{
+				if(barr[tn] == false)
+				{
+					// Then this node is a base level
+					this->graph.boundary[i] = 0;
+					// I do not need to check other neighbours so I break the loop
+					break;
+				}
+			}
+		}
+	}
+
+	void burn_data_to_base_levels(std::vector<float> data)
+	{
+		for(int i=0; i< this->graph.nnodes; ++i)
+		{
+			if(this->graph.can_flow_out_there(i))
+				this->graph.topography[i] = data[i];
+		}
 	}
 
 	std::vector<int> get_pixeltype(){return this->pixeltype;}

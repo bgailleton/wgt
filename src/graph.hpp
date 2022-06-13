@@ -700,7 +700,8 @@ class Graph
 			// Cordonnier2019<int,float> depsolver(*this, this->topography);
 			// std::cout << "cpp4.2" << std::endl;
 
-			depsolver.update_receivers(depression_solver);
+			if(depsolver.npits > 0)
+				depsolver.update_receivers(depression_solver);
 			// depsolver.update_receivers(depression_solver, this->topography);
 			// std::cout << "cpp4.3" << std::endl;
 		}
@@ -3061,7 +3062,7 @@ class Graph
 			float coor_factor = this->nnodes/newnxy;
 			float coor_factorx = this->nx/newnx;
 			float coor_factory = this->ny/newny;
-			std::vector<float> newtopo(newnxy, 0.);
+			std::vector<float> newtopo(newnxy, -9999);
 
 			int nx2average = floor(this->nx/newnx);
 			int ny2average = floor(this->ny/newny);
@@ -3078,19 +3079,25 @@ class Graph
 					int newi = r * newnx + c;
 					int i = oro * this->nx + oco;
 
+					if(this->can_flow_even_go_there(i) == false)
+						continue;
+
 					int N = 1;
 					float mean = this->topography[i];
 					int right = i;
 					for (int iright=i; iright<i + nx2average; ++iright)
 					{
 						
-
 						int bottom = right;
 						for (int ibottom=bottom; ibottom<right + ny2average; ++ibottom)
 						{
 							bottom = this->get_bottom_index(bottom);
+
 							if(bottom >= this->nnodes || bottom < 0)
 								break;
+							if(this->can_flow_even_go_there(bottom) == false)
+								continue;
+
 							++N;
 							mean += this->topography[bottom];
 						}
@@ -3100,7 +3107,8 @@ class Graph
 							break;
 					}
 
-					newtopo[newi] = mean/N;
+					if(N > 0)
+						newtopo[newi] = mean/N;
 
 				}
 			}
@@ -3857,6 +3865,58 @@ class Graph
 				std::string ttttttttt = std::to_string(sk);
 				output[ttttttttt.c_str()] = temp;
 			}
+			return output;
+		}
+
+		// This function returns a python dictionnary with all INDIVIDUAL FULL RIVERS
+		// I cannot stress enough how important it is, a lot of nodes will be duplicated.
+		// This is a rather specific function intended to select a specific river easily
+		py::dict get_rivers_by_basin()
+		{
+			py::dict output;
+
+			// int nbsins = 0;
+			// for(auto bk:this->basin_labels)
+			// 	if(bk > nbsins)
+			// 		nbsins = bk;
+
+			std::vector<std::vector<int> > nodes(this->nbasins);
+			std::vector<std::vector<float> > flow_distance(this->nbasins), elevation(this->nbasins), DA(this->nbasins);
+
+			std::vector<bool> isdone(this->nnodes,false);
+
+			for(auto sk:this->source_nodes)
+			{
+
+				// std::vector<int> nodes, flow_distance, elevation;
+				int bk = this->basin_labels[sk];
+				int tnode = sk;
+				do
+				{
+					nodes[bk].emplace_back(tnode);
+					flow_distance[bk].emplace_back(this->flowdistance[this->node2rnode[tnode]]);
+					elevation[bk].emplace_back(this->topography[tnode]);
+					DA[bk].emplace_back(this->area[tnode]);
+					isdone[tnode] = true;
+					tnode = this->receivers[tnode];
+				}while(this->can_flow_out_there(tnode) == false && isdone[tnode] == false);
+			}
+
+			for(int bk = 0; bk < this->nbasins; ++bk)
+			{
+				py::dict temp;
+				if(nodes[bk].size() == 0)
+					continue;
+
+				temp["node"] = py::array(nodes[bk].size(), nodes[bk].data());
+				temp["flow_distance"] = py::array(flow_distance[bk].size(), flow_distance[bk].data());
+				temp["elevation"] = py::array(elevation[bk].size(), elevation[bk].data());
+				temp["drainage_area"] = py::array(DA[bk].size(), DA[bk].data());
+				std::string ttttttttt = std::to_string(bk);
+				output[ttttttttt.c_str()] = temp;
+			}
+
+
 			return output;
 		}
 

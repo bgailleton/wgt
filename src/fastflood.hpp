@@ -47,11 +47,13 @@ class FastFlood
 		float manning = 0.033;
 		float dt = 1e-1;
 		float tolerance = 1e-6;
+		bool allow_neg = true;
 
 
 		// Constructor
 		FastFlood(){}
 		FastFlood(Graph& g){this->graph = &g;}
+		void set_allow_neg(bool tn){this->allow_neg = tn;}
 
 		void update_graph(Graph& g){this->graph = &g;}
 
@@ -75,7 +77,14 @@ class FastFlood
 			// this->graph->topography = this->get_full_ht();
 			// this->graph->compute_graph("fill");
 			// this->hw = On_gaussian_blur(1,this->hw,this->graph->nx, this->graph->ny);
-			this->fill_pits();
+			// this->fill_pits();
+			std::vector<float> ntopo(this->base_topo);
+			for(int i=0; i<this->graph->nnodes; ++i)
+				ntopo[i] = this->get_ht(i);
+			this->graph->topography = ntopo;
+			this->graph->compute_graph("carve");
+			this->graph->topography = this->base_topo;
+
 			// first calculating Qin
 			std::vector<float> Qin = this->graph->accumulate_downstream_var(this->graph->cellarea, this->precipitations);
 			float maxs = 0;
@@ -84,10 +93,10 @@ class FastFlood
 				int tnode = this->graph->stack[i];
 				int rec = this->graph->receivers[tnode];
 
-				if(this->graph->can_flow_even_go_there(tnode) == false || this->graph->can_flow_out_there(tnode) || this->get_ht(tnode) <= this->get_ht(rec) )
+				if(this->graph->can_flow_even_go_there(tnode) == false || this->graph->can_flow_out_there(tnode) )
 					continue;
 
-				float tS = this->get_Sw(tnode);
+				float tS = std::fmax(this->get_Sw(tnode), 0);
 				float Qout = this->graph->distance2receivers[tnode] * 1/this->manning * std::pow(this->hw[tnode],5/3) * std::pow(std::abs(tS),0.5);
 				float dQ = Qin[tnode] - Qout;
 				float dhw = dQ * this->dt / this->graph->cellarea;
@@ -96,7 +105,14 @@ class FastFlood
 				if(Qin[tnode] > maxs)
 					maxs = Qin[tnode];
 
-				this->hw[tnode] = fmax(dhw + this->hw[tnode],0);
+				if(allow_neg)
+					this->hw[tnode] = fmax(dhw + this->hw[tnode],0);
+				else
+				{
+					if(dhw > 0)
+						this->hw[tnode] = fmax(dhw + this->hw[tnode],0);
+
+				}
 			}
 			// std::cout << "Max Qin was " << maxs << std::endl;
 		}
@@ -117,12 +133,28 @@ class FastFlood
 		void ingest_hw_other_dim(std::vector<float>& ohw, Graph& ograph)
 		{
 			this->init();
+			this->graph->calculate_area();
 			for(int i = 0; i<this->graph->nnodes; ++i)
 			{
-				float tX, tY;
-				this->graph->XY_from_nodeid(i,tX,tY);
-				int j = ograph.nodeid_from_XY(tX,tY);
+				if(this->graph->can_flow_even_go_there(i) == false || this->graph->area[i] < this->graph->dx * this->graph->dy * 500 )
+					continue;
+
+				int row,col;
+				this->graph->rowcol_from_node_id(i,row,col);
+				float percrow = float(row)/this->graph->ny;
+				float perccol = float(col)/this->graph->nx;
+				int j = ograph.nodeid_from_row_col(floor(percrow * ograph.ny),floor(perccol * ograph.nx));
 				this->hw[i] = ohw[j];
+			}
+			On_gaussian_blur(1,this->hw, this->graph->nx, this->graph->ny);
+		}
+
+		void diffuse_hw(float r){On_gaussian_blur(r,this->hw, this->graph->nx, this->graph->ny);}
+		void multiply_hw_by(float factor)
+		{
+			for (auto& v: this->hw)
+			{
+				v*=factor;
 			}
 		}
 
@@ -146,7 +178,7 @@ class FastFlood
 			for(int i=0; i<this->graph->nnodes; ++i)
 			{
 				
-				if(this->graph->can_flow_out_there(i))
+				if(this->graph->can_flow_out_there(i) || this->graph->can_flow_even_go_there(i) == false)
 					continue;
 
 				int rec = this->graph->receivers[i];
@@ -156,6 +188,7 @@ class FastFlood
 					this->hw[i] += 1e-4 + this->get_ht(rec) - this->get_ht(i);
 				}
 			}
+			this->graph->topography = this->base_topo;
 		}
 
 #ifdef __EMSCRIPTEN__

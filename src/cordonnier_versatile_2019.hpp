@@ -19,9 +19,16 @@ This header file extends the graph to provide routines to process depressions us
 #include <numeric>
 #include <cmath>
 #include <initializer_list>
+#include <chrono>
 
 #include "chonkutils.hpp"
 // #include "graph.hpp"
+
+using std::chrono::high_resolution_clock;
+using std::chrono::duration_cast;
+using std::chrono::duration;
+using std::chrono::milliseconds;
+
 
 class Graph;
 
@@ -299,8 +306,12 @@ class Cordonnier2019
 	 	}
 
 		int nconn, basin0;
+		auto t1 = high_resolution_clock::now();
+
 		this->_connect_basins(this->conn_basins, this->conn_nodes, conn_weights, elevation, nconn, basin0);
-		
+		auto t2 = high_resolution_clock::now();
+		duration<double, std::milli> ms_double = t2 - t1;
+		std::cout << "_compute_links --> " << ms_double.count() << " milliseconds" << std::endl;;
 		int scb = nconn, scn = nconn, scw = nconn;
 
 		this->conn_basins = std::vector<std::vector<n_t> >(this->conn_basins.begin(), this->conn_basins.begin() + scb - 1);
@@ -787,15 +798,40 @@ public:
 	Cordonnier2019_v2(Graph& graph)
 	{
 		this->graph = &graph;
+		auto t1 = high_resolution_clock::now();
 		this->compute_basins_and_pits();
-		this->preprocess_flowrouting();
+		auto t2 = high_resolution_clock::now();
+		duration<double, std::milli> ms_double = t2 - t1;
+		// std::cout << "Computing basins and pits -> " << ms_double.count() << " milliseconds" << std::endl;;
+		if(this->npits > 0)
+		{
+			t1 = high_resolution_clock::now();
+			this->preprocess_flowrouting();
+			t2 = high_resolution_clock::now();
+			ms_double = t2 - t1;
+			// std::cout << "Preprocess_flowrouting -> " << ms_double.count() << " milliseconds" << std::endl;;
+			
+		}
 	}
 
 	void preprocess_flowrouting()
 	{
+		auto t1 = high_resolution_clock::now();
+
 		this->_compute_links();
+		auto t2 = high_resolution_clock::now();
+		duration<double, std::milli> ms_double = t2 - t1;
+		// std::cout << "_compute_links --> " << ms_double.count() << " milliseconds" << std::endl;;
+		t1 = high_resolution_clock::now();
 		this->_compute_mst_kruskal();
+		t2 = high_resolution_clock::now();
+		ms_double = t2 - t1;
+		// std::cout << "_compute_mst_kruskal --> " << ms_double.count() << " milliseconds" << std::endl;;
+		t1 = high_resolution_clock::now();
 		this->_orient_basin_tree();
+		t2 = high_resolution_clock::now();
+		ms_double = t2 - t1;
+		// std::cout << "_orient_basin_tree --> " << ms_double.count() << " milliseconds" << std::endl;;
 	}
 
 	// Uses the stack structure to build a quick basin array
@@ -846,8 +882,10 @@ public:
 		// std::vector<std::vector<dist_t> > mat_of_scores(this->nbasins,std::vector<dist_t>(this->nbasins,std::numeric_limits<dist_t>::max()));
 		// std::vector<std::vector<std::vector<n_t> > > mat_of_nodes(this->nbasins,std::vector<std::vector<n_t> >(this->nbasins));
 
-		std::map<int, std::map<int,dist_t > > mat_of_scores;
-		std::map<int, std::map<int, std::vector<n_t> > > mat_of_nodes;
+		std::unordered_map<int, std::unordered_map<int,dist_t > > mat_of_scores;
+		std::unordered_map<int, std::unordered_map<int, std::vector<n_t> > > mat_of_nodes;
+		auto t1 = high_resolution_clock::now();
+		
 
 		for(int i=0; i<this->graph->nnodes; ++i)
 		{
@@ -907,7 +945,12 @@ public:
 				}
 			}
 		}
+		auto t2 = high_resolution_clock::now();
+		duration<double, std::milli> ms_double = t2 - t1;
+		// std::cout << "_compute_links::building ---> " << ms_double.count() << " milliseconds" << std::endl;;
 
+
+		t1 = high_resolution_clock::now();
 		for (auto it=mat_of_scores.begin(); it!=mat_of_scores.end(); ++it)
 		{
 			int basA = it->first;
@@ -922,6 +965,10 @@ public:
 			
 
 		}
+
+		t2 = high_resolution_clock::now();
+		ms_double = t2 - t1;
+		// std::cout << "_compute_links::sorting ---> " << ms_double.count() << " milliseconds" << std::endl;;
 
 		// dist_t maxval = std::numeric_limits<dist_t>::max();
 		// for(int i = 0; i < this->nbasins;++i)
@@ -1283,6 +1330,8 @@ public:
 
 	void update_receivers(std::string& method)
 	{
+		auto t1 = high_resolution_clock::now();
+
 		if(method == "simple" || method == "Simple")
 			this->_update_pits_receivers_sompli();
 		else if (method == "carve")
@@ -1296,7 +1345,11 @@ public:
 		}
 		// std::cout << "fabul" << std::endl;
 		this->graph->recompute_SF_donors_from_receivers();
-		// std::cout << "fabudl" << std::endl;
+
+		auto t2 = high_resolution_clock::now();
+		duration<double, std::milli> ms_double = t2 - t1;
+		// std::cout << "Update recs -> " << ms_double.count() << " milliseconds" << std::endl;;
+
 	}
 
 
