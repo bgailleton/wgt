@@ -48,6 +48,9 @@ class FastFlood
 		float dt = 1e-1;
 		float tolerance = 1e-6;
 		bool allow_neg = true;
+		float hydrcof = 1e-2;
+		float hydrex = 0.5;
+		float Qwinth = 0;
 
 
 		// Constructor
@@ -74,10 +77,7 @@ class FastFlood
 
 		void run()
 		{
-			// this->graph->topography = this->get_full_ht();
-			// this->graph->compute_graph("fill");
-			// this->hw = On_gaussian_blur(1,this->hw,this->graph->nx, this->graph->ny);
-			// this->fill_pits();
+			
 			std::vector<float> ntopo(this->base_topo);
 			for(int i=0; i<this->graph->nnodes; ++i)
 				ntopo[i] = this->get_ht(i);
@@ -94,6 +94,9 @@ class FastFlood
 				int rec = this->graph->receivers[tnode];
 
 				if(this->graph->can_flow_even_go_there(tnode) == false || this->graph->can_flow_out_there(tnode) )
+					continue;
+
+				if(this->Qwinth > 0 && this->Qwinth > Qin[tnode] )
 					continue;
 
 				float tS = std::fmax(this->get_Sw(tnode), 0);
@@ -114,12 +117,144 @@ class FastFlood
 
 				}
 			}
-			// std::cout << "Max Qin was " << maxs << std::endl;
+
+		}
+
+		void run_analitically(float increment = 1e-3)
+		{
+			std::vector<float> ntopo(this->base_topo);
+			for(int i=0; i<this->graph->nnodes; ++i)
+				ntopo[i] = this->get_ht(i);
+			this->graph->topography = ntopo;
+			this->graph->compute_graph("carve");
+			this->graph->topography = this->base_topo;
+			std::vector<float> Qin = this->graph->accumulate_downstream_var(this->graph->cellarea, this->precipitations);
+
+			for(int i = 0 ; i < this->graph->nnodes; ++i)
+			{
+				int tnode = this->graph->stack[i];
+				int rec = this->graph->receivers[tnode];
+
+				if(this->graph->can_flow_even_go_there(tnode) == false || this->graph->can_flow_out_there(tnode) )
+					continue;
+
+				float tS = std::fmax(this->get_Sw(tnode), 0);
+				float Qout = this->graph->distance2receivers[tnode] * 1/this->manning * std::pow(this->hw[tnode],5/3) * std::pow(std::abs(tS),0.5);
+				while(Qout < Qin[tnode])
+				{
+					this->hw[tnode] += increment;
+					float tS = std::fmax(this->get_Sw(tnode), 0);
+					Qout = this->graph->distance2receivers[tnode] * 1/this->manning * std::pow(this->hw[tnode],5/3) * std::pow(std::abs(tS),0.5);
+				}
+			}
+		}
+
+		std::vector<float> get_full_Sw()
+		{
+			std::vector<float> fSw(this->graph->nnodes,0.);
+
+			for(int i=0; i<this->graph->nnodes; ++i)
+				fSw[i] = this->get_Sw(i);
+
+			return fSw;
 		}
 
 
+		void flood_in()
+		{
+			std::vector<float> ntopo(this->base_topo);
+			for(int i=0; i<this->graph->nnodes; ++i)
+				ntopo[i] = this->get_ht(i);
+			this->graph->topography = ntopo;
+			this->graph->compute_graph("carve");
+			this->graph->topography = this->base_topo;
+
+			// first calculating Qin
+			std::vector<float> Qin = this->graph->accumulate_downstream_var(this->graph->cellarea, this->precipitations);
+			float maxs = 0;
+			for(int i = this->graph->nnodes - 1 ; i >= 0; --i)
+			{
+				int tnode = this->graph->stack[i];
+				int rec = this->graph->receivers[tnode];
+
+				if(this->graph->can_flow_even_go_there(tnode) == false || this->graph->can_flow_out_there(tnode) )
+					continue;
+
+				this->hw[tnode] = std::fmax((this->hydrcof * std::pow(Qin[tnode],this->hydrex))/this->graph->cellarea , this->hw[tnode] );
+			}
+		}
+
+		void set_Qwinth(float Qwinth){this->Qwinth = Qwinth;};
+
+		void flood_in_exp()
+		{
+			std::vector<float> ntopo(this->base_topo);
+			for(int i=0; i<this->graph->nnodes; ++i)
+				ntopo[i] = this->get_ht(i);
+			this->graph->topography = ntopo;
+			this->graph->compute_graph("carve");
+			this->graph->topography = this->base_topo;
+
+			// first calculating Qin
+			std::vector<float> Qin = this->graph->accumulate_downstream_var(this->graph->cellarea, this->precipitations);
+			float maxs = 0;
+			for(int i = this->graph->nnodes - 1 ; i >= 0; --i)
+			{
+				int tnode = this->graph->stack[i];
+				int rec = this->graph->receivers[tnode];
+
+				if(this->graph->can_flow_even_go_there(tnode) == false || this->graph->can_flow_out_there(tnode) )
+					continue;
+
+				this->hw[tnode] = std::fmax((this->hydrcof * std::pow(Qin[tnode],this->hydrex))/this->graph->cellarea , this->hw[tnode] );
+			}
+		}
+
+		void transient()
+		{
+			std::vector<float> ntopo(this->base_topo);
+			for(int i=0; i<this->graph->nnodes; ++i)
+				ntopo[i] = this->get_ht(i);
+			this->graph->topography = ntopo;
+			this->graph->compute_graph("carve");
+			this->graph->topography = this->base_topo;
+
+			// first calculating Qin
+			std::vector<float> Qin(this->precipitations);
+			float maxs = 0;
+			for(int i = this->graph->nnodes - 1 ; i >= 0; --i)
+			{
+				int tnode = this->graph->stack[i];
+				int rec = this->graph->receivers[tnode];
+
+				if(this->graph->can_flow_even_go_there(tnode) == false || this->graph->can_flow_out_there(tnode) )
+					continue;
+
+				float tS = std::fmax(this->get_Sw(tnode), 0);
+				float Qout = this->graph->distance2receivers[tnode] * 1/this->manning * std::pow(this->hw[tnode],5/3) * std::pow(std::abs(tS),0.5);
+				float dQ = Qin[tnode] - Qout;
+				float dhw = dQ * this->dt / this->graph->cellarea;
+				// if(dhw > 10)
+				// 	std::cout << Qin[tnode] << "|" << Qout << std::endl;
+				if(Qin[tnode] > maxs)
+					maxs = Qin[tnode];
+
+				Qin[rec] += Qout;
+
+				if(allow_neg)
+					this->hw[tnode] = fmax(dhw + this->hw[tnode],0);
+				else
+				{
+					if(dhw > 0)
+						this->hw[tnode] = fmax(dhw + this->hw[tnode],0);
+
+				}
+			}
+		}
+
 		float get_ht(int tnode){return this->base_topo[tnode] + this->hw[tnode];}
 		float get_Sw(int tnode){return (this->get_ht(tnode) - this->get_ht(this->graph->receivers[tnode]) ) / this->graph->distance2receivers[tnode];}
+		float get_S(int tnode){return (this->base_topo[tnode] - this->base_topo[this->graph->receivers[tnode]] ) / this->graph->distance2receivers[tnode];}
 		std::vector<float> get_full_ht()
 		{
 			std::vector<float> fullht(this->graph->nnodes_t,this->graph->NDV);
@@ -128,6 +263,12 @@ class FastFlood
 				fullht[i] = this->get_ht(i);
 			}
 			return fullht;
+		}
+
+		void set_hydremp(float hydrcof, float hydrex)
+		{
+			this->hydrcof = hydrcof;
+			this->hydrex = hydrex;
 		}
 
 		void ingest_hw_other_dim(std::vector<float>& ohw, Graph& ograph)

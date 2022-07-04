@@ -31,9 +31,13 @@ using std::chrono::milliseconds;
 
 
 class Graph;
+class MGraph;
 
 template<class n_t, class dist_t>
 class Cordonnier2019_v2;
+
+template<class n_t, class dist_t>
+class Cordonnier2019_v2MF;
 
 template<class n_t, class dist_t>
 class Link
@@ -1310,6 +1314,600 @@ public:
 						// std::cout << ineighbor.node << "<--" << tnode << "|||";
 						this->graph->receivers[ineighbor.node] = tnode;
 						this->graph->distance2receivers[ineighbor.node] = ineighbor.distance;
+						yonode.push(ineighbor.node);
+						isdone[ineighbor.node] = true;
+					}
+				}
+
+			}
+		}
+		
+	}
+
+
+
+	// bool is_open(int i)
+	// {
+	// 	return this->graph->can_flow_out_there(this->outlets_from[i]);
+	// }
+
+
+	void update_receivers(std::string& method)
+	{
+		auto t1 = high_resolution_clock::now();
+
+		if(method == "simple" || method == "Simple")
+			this->_update_pits_receivers_sompli();
+		else if (method == "carve")
+		{
+			this->_update_pits_receivers_carve();
+		}
+		else if (method == "fill")
+		{
+			// std::cout << "gwamoulg" << std::endl;
+			this->_update_pits_receivers_fill();
+		}
+		// std::cout << "fabul" << std::endl;
+		this->graph->recompute_SF_donors_from_receivers();
+
+		auto t2 = high_resolution_clock::now();
+		duration<double, std::milli> ms_double = t2 - t1;
+		// std::cout << "Update recs -> " << ms_double.count() << " milliseconds" << std::endl;;
+
+	}
+
+
+};
+
+
+
+template<class n_t, class dist_t>
+class Cordonnier2019_v2MF
+{
+public:
+
+	// Pointer to the mother graph; NNEDS TO BE SINGLE FLOW
+	MGraph* graph;
+
+	// Labelling the watersheds
+	std::vector<n_t> basin_labels;
+	std::vector<bool> is_open_basin;
+	std::vector<n_t> basin_to_outlets;
+	std::vector<n_t> pits_to_reroute;
+	std::vector<n_t> mstree;
+	std::vector<n_t> receivers, nodes_to, nodes_from, outlets_from;
+	std::vector<std::vector<n_t> > donors;
+
+	std::vector< Link<n_t, dist_t>* > stack;
+
+
+	std::vector<Link<n_t, dist_t> > active_links;
+	std::vector< std::vector< Link<n_t, dist_t>* > > bas2links;
+	std::priority_queue<Link<n_t, dist_t>, std::vector<Link<n_t, dist_t>>, std::greater<Link<n_t, dist_t> > > pqlinks;
+
+
+
+
+	int nbasins;
+	int npits = 0;
+
+
+	Cordonnier2019_v2MF(){;};
+	Cordonnier2019_v2MF(MGraph& graph)
+	{
+		this->graph = &graph;
+		auto t1 = high_resolution_clock::now();
+		this->compute_basins_and_pits();
+		auto t2 = high_resolution_clock::now();
+		duration<double, std::milli> ms_double = t2 - t1;
+		// std::cout << "Computing basins and pits -> " << ms_double.count() << " milliseconds" << std::endl;;
+		if(this->npits > 0)
+		{
+			t1 = high_resolution_clock::now();
+			this->preprocess_flowrouting();
+			t2 = high_resolution_clock::now();
+			ms_double = t2 - t1;
+			// std::cout << "Preprocess_flowrouting -> " << ms_double.count() << " milliseconds" << std::endl;;
+			
+		}
+	}
+
+	void preprocess_flowrouting()
+	{
+		auto t1 = high_resolution_clock::now();
+
+		this->_compute_links();
+		auto t2 = high_resolution_clock::now();
+		duration<double, std::milli> ms_double = t2 - t1;
+		// std::cout << "_compute_links --> " << ms_double.count() << " milliseconds" << std::endl;;
+		t1 = high_resolution_clock::now();
+		this->_compute_mst_kruskal();
+		t2 = high_resolution_clock::now();
+		ms_double = t2 - t1;
+		// std::cout << "_compute_mst_kruskal --> " << ms_double.count() << " milliseconds" << std::endl;;
+		t1 = high_resolution_clock::now();
+		this->_orient_basin_tree();
+		t2 = high_resolution_clock::now();
+		ms_double = t2 - t1;
+		// std::cout << "_orient_basin_tree --> " << ms_double.count() << " milliseconds" << std::endl;;
+	}
+
+	// Uses the stack structure to build a quick basin array
+	void compute_basins_and_pits()
+	{
+		this->basin_labels = std::vector<n_t>(this->graph->nnodes_t, -1);
+		this->basin_to_outlets.reserve(200);
+		this->pits_to_reroute.reserve(200);
+		n_t lab = -1;
+		for(auto tnode: this->graph->stack)
+		{
+			if(this->graph->can_flow_even_go_there(tnode) == false)
+			{
+				// std::cout << "bagul?" << std::endl;
+				continue;
+			}
+			
+			if(this->graph->Sreceivers[tnode] == tnode)
+			{
+				lab++;
+				this->basin_to_outlets.emplace_back(tnode);
+				if(this->graph->can_flow_out_there(tnode) == false)
+				{
+					this->pits_to_reroute.emplace_back(tnode);
+					this->is_open_basin.emplace_back(false);
+					this->npits++;
+				}
+				else
+					this->is_open_basin.emplace_back(true);
+
+
+			}
+
+			// if(lab == -1)
+			// 	throw std::runtime_error("flonflon?");
+
+			this->basin_labels[tnode] = lab;
+		
+		}
+		
+		this->nbasins = lab + 1;
+	}
+
+	void _compute_links()
+	{
+
+		// Initialising a matrix of links for each basins in order to stor the minimum elevation links between each pair of basins
+		// std::vector<std::vector<dist_t> > mat_of_scores(this->nbasins,std::vector<dist_t>(this->nbasins,std::numeric_limits<dist_t>::max()));
+		// std::vector<std::vector<std::vector<n_t> > > mat_of_nodes(this->nbasins,std::vector<std::vector<n_t> >(this->nbasins));
+
+		std::unordered_map<int, std::unordered_map<int,dist_t > > mat_of_scores;
+		std::unordered_map<int, std::unordered_map<int, std::vector<n_t> > > mat_of_nodes;
+		auto t1 = high_resolution_clock::now();
+		
+
+		for(int i=0; i<this->graph->nnodes; ++i)
+		{
+			if(this->graph->can_flow_even_go_there(i) == false)
+				continue;
+
+			auto neighbours = this->graph->get_neighbours_only_id(i);
+			int tbas = this->basin_labels[i];
+			dist_t telev = (*this->graph->topography)[i];
+			for(auto tn:neighbours)
+			{
+				if(this->graph->can_flow_even_go_there(tn) == false)
+					continue;
+
+				int obas = this->basin_labels[tn];
+				if(tbas != obas)
+				{
+
+					if(this->is_open_basin[tbas] && this->is_open_basin[obas])
+						continue;
+
+					dist_t score = std::min(telev, (*this->graph->topography)[tn]);
+					int basA = (tbas > obas) ? obas : tbas;
+					int basB = (tbas > obas) ? tbas : obas;
+
+					bool isinmap = mat_of_scores.count(basA) > 0;
+					if(isinmap)
+						isinmap = mat_of_scores[basA].count(basB) > 0;
+
+					bool need = false;
+					if(isinmap)
+					{
+						if(mat_of_scores[basA][basB] > score)
+						{
+							need = true;
+						}
+					}
+					else
+						need = true;
+
+
+					if(need)
+					{
+						if(basA == tbas)
+						{
+							std::vector<n_t> temp = std::initializer_list<n_t>{i,tn};
+							mat_of_nodes[basA][basB] = temp;
+						}
+						else
+						{
+							std::vector<n_t> temp = std::initializer_list<n_t>{tn,i};
+							mat_of_nodes[basA][basB] = temp;
+						}
+
+						mat_of_scores[basA][basB] = score;
+					}
+				}
+			}
+		}
+		auto t2 = high_resolution_clock::now();
+		duration<double, std::milli> ms_double = t2 - t1;
+		// std::cout << "_compute_links::building ---> " << ms_double.count() << " milliseconds" << std::endl;;
+
+
+		t1 = high_resolution_clock::now();
+		for (auto it=mat_of_scores.begin(); it!=mat_of_scores.end(); ++it)
+		{
+			int basA = it->first;
+			for (auto it2=mat_of_scores[basA].begin(); it2!=mat_of_scores[basA].end(); ++it2)
+			{
+				int basB = it2->first;
+				dist_t score = it2->second;
+				this->pqlinks.emplace(Link<n_t,dist_t>(basA,basB,mat_of_nodes[basA][basB][0],mat_of_nodes[basA][basB][1],score));
+			}
+
+
+			
+
+		}
+
+		t2 = high_resolution_clock::now();
+		ms_double = t2 - t1;
+		// std::cout << "_compute_links::sorting ---> " << ms_double.count() << " milliseconds" << std::endl;;
+
+		// dist_t maxval = std::numeric_limits<dist_t>::max();
+		// for(int i = 0; i < this->nbasins;++i)
+		// {
+		// 	for(int j=0; j<this->nbasins;++j)
+		// 	{
+
+		// 		if(j <= i)
+		// 			continue;
+
+		// 		if(mat_of_scores[i][j] ==	maxval)
+		// 			continue;
+
+		// 		this->pqlinks.emplace(Link<n_t,dist_t>(i,j,mat_of_nodes[i][j][0],mat_of_nodes[i][j][1],mat_of_scores[i][j]));
+		// 		// std::cout << "LIIINK::"<<i << "|" << j << std::endl;
+		// 	}
+		// }
+
+	}
+
+	void _compute_mst_kruskal()
+	{
+		// this->mstree = std::vector<n_t>(this->nbasins - 1);
+		this->bas2links = std::vector< std::vector< Link<n_t, dist_t>* > >( this->nbasins, std::vector< Link<n_t, dist_t>* >() );
+		int mstree_size = 0;
+
+		UnionFindv2<n_t,dist_t> uf(nbasins, (*this) );
+		int j = 0;
+
+		while(this->pqlinks.empty() == false)
+		{
+			auto next = this->pqlinks.top();
+			this->pqlinks.pop();
+
+			int b0 = next.from;
+			int b1 = next.to;
+			int fb0 = uf.Find(b0);
+			int fb1 = uf.Find(b1) ;
+			if (fb0 != fb1)
+			{
+
+				if(uf._open[fb0] && uf._open[fb1])
+					continue;
+				// std::cout << "GOUGN::" << b0 << "|" << b1 << "|" << this->nbasins << std::endl;
+				
+				uf.Union(b0, b1);
+				this->active_links.emplace_back(next);
+				++j;
+			}
+		}
+
+		for(size_t i = 0; i < this->active_links.size(); ++i)
+		{
+			this->bas2links[this->active_links[i].from].emplace_back(&this->active_links[i]);
+			this->bas2links[this->active_links[i].to].emplace_back(&this->active_links[i]);
+		}
+
+		// for (int tb = 0 ; tb < this->nbasins; ++tb)
+		// for(size_t j=0; j<this->bas2links[tb].size(); ++j)
+		// {
+		// 	if(this->bas2links[tb][j]->from >= this->nbasins || this->bas2links[tb][j]->to >= this->nbasins)
+		// 			throw std::runtime_error("waffon2");
+		// }
+
+	}
+
+	void _orient_basin_tree()
+	{
+
+		this->receivers = std::vector<n_t>(this->nbasins, -1);
+		this->nodes_to = std::vector<n_t>(this->nbasins, -1);
+		this->nodes_from = std::vector<n_t>(this->nbasins, -1);
+		this->outlets_from = std::vector<n_t>(this->nbasins, -1);
+		this->stack.clear();this->stack.reserve(this->nbasins);
+
+		std::vector<bool> isdone(this->nbasins,false);
+
+
+
+		// std::cout << "here::" << this->active_links.size() << std::endl;		
+		for(int i = this->active_links.size() - 1; i >= 0; --i)
+		{
+			// getting the link
+			// auto& tlink = this->active_links[i]; 
+
+			if(this->is_open_basin[this->active_links[i].from] == false && this->is_open_basin[this->active_links[i].to] == false)
+				continue;
+
+			if(this->is_open_basin[this->active_links[i].from])
+			{
+				// std::cout << "BOULOUF" << std::endl;
+				this->active_links[i].inverse();
+			}
+
+			std::stack<int, std::vector<int> > stackhelper;
+			stackhelper.emplace(this->active_links[i].to);
+
+			while(stackhelper.empty() == false)
+			{
+				int next = stackhelper.top();
+				isdone[next] = true;
+
+				stackhelper.pop();
+				for(auto ptr: this->bas2links[next])
+				{
+					// std::cout << "Wafulb1::" << ptr->from << "|" << ptr->to << std::endl;
+					if(ptr->from == next)
+					{
+						if(isdone[ptr->to] == false)
+						{
+							stackhelper.emplace(ptr->to);
+							ptr->inverse();
+							// if(isdone[ptr->from] == false)
+							// {
+								// std::cout << "STACKADD1" << std::endl;
+								this->stack.emplace_back(ptr);
+								// std::cout << this->is_open_basin[ptr->from] << "||" << this->is_open_basin[ptr->to] << std::endl;
+								isdone[ptr->from] = true;
+							// }
+						}
+					}
+					else if(isdone[ptr->from] == false)
+					{
+						stackhelper.emplace(ptr->from);
+						if(isdone[ptr->from] == false)
+						{
+							// std::cout << "STACKADD2" << std::endl;
+							this->stack.emplace_back(ptr);
+							isdone[ptr->from] = true;
+						}
+					}
+				}
+			}
+		}
+
+	}
+
+	void compute_TO_SF_stack_version()
+	{
+		// Initialising the stack
+		this->stack.clear();
+		// reserving the amount of stuff
+		this->stack.reserve(this->nbasins);
+
+		// The stack container helper
+		std::stack<int, std::vector<int> > stackhelper;
+		// std::vector<bool> isdone(this->nbasins,false);
+		// going through all the nodes
+		for(int i=0; i<this->nbasins; ++i)
+		{
+			// if they are base level I include them in the stack
+			if(this->receivers[i] == i)
+			{
+				stackhelper.emplace(i);
+			}
+
+			// While I still have stuff in the stack helper
+			while(stackhelper.empty() == false)
+			{
+				// I get the next node and pop it from the stack helper
+				int nextnode = stackhelper.top();stackhelper.pop();
+				// std::cout << stackhelper.size() << "->" << nextnode << std::endl;
+
+				// // I emplace it in the stack
+				// if(isdone[nextnode] == true)
+				//	throw std::runtime_error("node-duplicate");
+
+
+				// isdone[nextnode] = true;
+				this->stack.emplace_back(nextnode);
+
+				// as well as all its donors which will be processed next
+				for( int j = 0; j < this->donors[nextnode].size(); ++j)
+				{
+					stackhelper.emplace(this->donors[nextnode][j]);
+				}
+
+			}
+
+		}
+
+
+
+	}
+
+	void _update_pits_receivers_carve()
+	{
+
+		// std::cout <<"ID,rfrom,cfrom,rto,cto,rout,cout" << std::endl;
+			
+		// int lab=0;
+		for(int i=this->stack.size() - 1; i >=0 ; --i)
+		// for(int i=0;  i<this->stack.size(); ++i)
+		{
+
+			auto tlink = this->stack[i];
+			// int i = mstree[ti];
+			int node_to = tlink->node_to;
+			int node_from = tlink->node_from;
+			int onode_to = tlink->node_to;
+			int onode_from = tlink->node_from;
+			int outlet_from = this->basin_to_outlets[tlink->from];
+
+			// if(this->graph->can_flow_out_there(outlet_from))
+			// {
+			// 	std::cout << "OUT??" << this->graph->can_flow_out_there(this->basin_to_outlets[this->basin_labels[node_to]]) << "|" << this->graph->can_flow_out_there(this->basin_to_outlets[this->basin_labels[node_from]]) << std::endl;
+			// 	continue;
+			// }
+
+			int rowf,colf,rowt,colt, rowo, colo;
+			// this->graph->rowcol_from_node_id(node_from,rowf,colf);
+			// this->graph->rowcol_from_node_id(node_to,rowt,colt);
+			// this->graph->rowcol_from_node_id(outlet_from,rowo,colo);
+			// std::cout << lab <<"," <<rowf <<"," <<colf <<"," << rowt<<"," <<colt <<"," << rowo<<"," << colo << std::endl;
+			// lab++;
+
+
+			int next_node = this->graph->Sreceivers[node_from];
+			int temp = node_from;
+			bool keep_on = true;
+			do
+			{
+
+				// int this_row,this_col, this_rfrom, this_cfrom;
+				// this->graph->rowcol_from_node_id(next_node, this_row, this_col);
+				// this->graph->rowcol_from_node_id(node_from, this_rfrom, this_cfrom);
+
+				// std::cout << "This Rerouting " << this_row << "/" <<this_col << " to " << this_rfrom << "/" << this_cfrom << std::endl;
+
+
+				if(next_node == outlet_from)
+				{
+					keep_on = false;
+				}
+
+
+				temp = this->graph->Sreceivers[next_node];
+
+				// if(viz[temp])
+				// {
+				// 	std::cout << "CYCLICITY ON LINK:" << std::endl;
+				// 	std::cout << tlink->from << " to " << tlink->to << std::endl;;
+				// 	std::cout << rowf << "|" << colf << " to " << rowt << "|" << colt  << std::endl;;
+				// 	throw std::runtime_error("asdfasdfsadfasdf");
+				// }
+				// viz[next_node] = true;
+
+				// if(temp == next_node || this->graph->can_flow_out_there(next_node))
+				// 	keep_on = false;
+
+				this->graph->Sreceivers[next_node] = node_from;
+				this->graph->Sdistance2receivers[next_node] = this->graph->Sdistance2receivers[node_from]; // just to have a length but it should not actually be used
+				node_from = next_node;
+				next_node = temp;
+			} while(keep_on);
+
+
+
+			this->graph->Sreceivers[onode_from] = onode_to;
+			this->graph->Sdistance2receivers[onode_from] = this->graph->dx; // just to have a length but it should not actually be used
+
+			this->graph->rowcol_from_node_id(onode_from,rowf,colf);
+			this->graph->rowcol_from_node_id(onode_to,rowt,colt);
+			// std::cout << "Final Rerouting " << rowf << "/" <<colf << " to " << rowt << "/" << colt << std::endl;
+		}
+		
+	}
+
+
+
+	void _update_pits_receivers_sompli()
+	{
+		// for i in mstree:
+		for(int i=this->stack.size() - 1; i >=0 ; --i)
+		{
+
+			auto tlink = this->stack[i];
+
+
+			int node_to = tlink->node_to;
+			int node_from = tlink->node_from;
+
+			// # skip open basins
+			if (node_from == -1)
+			{
+					continue;
+			}
+
+			// int outlet_from = this->basin_to_outlets[conn_basins[i][1] ];
+			int outlet_from = this->basin_to_outlets[tlink->from];
+
+			this->graph->Sreceivers[outlet_from] = node_to;
+			this->graph->Sdistance2receivers[outlet_from] = this->graph->dx; // just to have a length but it should not actually be used
+		}
+
+	 
+	}
+
+	void _update_pits_receivers_fill()
+	{
+		// for i in mstree:
+		// std::cout <<"yolo";
+		std::vector<bool> isdone(this->graph->nnodes_t,false);
+		for(int i=this->stack.size() - 1; i >=0 ; --i)
+		// for(int i=0;  i<this->stack.size(); ++i)
+		{
+
+			auto tlink = this->stack[i];
+			// int i = mstree[ti];
+			int node_to = tlink->node_to;
+			int node_from = tlink->node_from;
+			int onode_to = tlink->node_to;
+			int onode_from = tlink->node_from;
+			int outlet_from = this->basin_to_outlets[tlink->from];
+
+			int tg_bas = this->basin_labels[node_from];
+
+
+			// # skip open basins
+			if (node_from == -1)
+			{
+					continue;
+			}
+			// std::cout << "rec nodde_from beef " << this->graph->receivers[node_from];;
+			float otopo = std::fmax((*this->graph->topography)[node_to],(*this->graph->topography)[node_from]);
+			std::queue<int> yonode;
+			yonode.push(node_to);
+			while(yonode.size() > 0)
+			{
+				int tnode = yonode.front(); yonode.pop();
+	 			auto neighbours = this->graph->get_neighbours(tnode, false);
+				for(auto& ineighbor:neighbours)
+				{
+					if(this->graph->can_flow_even_go_there(ineighbor.node) == false || tg_bas != this->basin_labels[ineighbor.node] || isdone[ineighbor.node] == true)
+						continue;
+
+					if((*this->graph->topography)[ineighbor.node] <= otopo)
+					{
+						// std::cout << ineighbor.node << "<--" << tnode << "|||";
+						this->graph->Sreceivers[ineighbor.node] = tnode;
+						this->graph->Sdistance2receivers[ineighbor.node] = ineighbor.distance;
 						yonode.push(ineighbor.node);
 						isdone[ineighbor.node] = true;
 					}

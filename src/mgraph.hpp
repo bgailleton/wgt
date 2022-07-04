@@ -45,7 +45,7 @@
 
 
 // the main calss managing the graph
-class Graph
+class MGraph
 {
 	public:
 
@@ -85,9 +85,13 @@ class Graph
 		int not_a_node;
 		float NDV = -9999;
 
-		std::vector<int> receivers;
+		std::vector<int> Sreceivers;
+		std::vector<std::vector<int> > Sdonors;
+		std::vector<float> Sdistance2receivers;
+
+		std::vector<std:vector<int> > receivers;
 		std::vector<std::vector<int> > donors;
-		std::vector<float> distance2receivers;
+		std::vector<std:vector<float> > distance2receivers;
 
 		// #->stack: topological order from downstream to upstream direction
 		std::vector<int> stack;
@@ -112,7 +116,7 @@ class Graph
 
 
 		// the topography:
-		std::vector<float> topography;
+		std::vector<float>* topography;
 
 
 		// Coordinate stuff
@@ -120,45 +124,7 @@ class Graph
 		// Extents holds the cxmin,xmax,ymin,ymax (extent is an option in matplotlib imshow plots)
 		std::vector<float> Xs,Ys, extents;
 
-		// "Hydro" stuff
-		// Drainage area
-		std::vector<float> area;
-		// liste of nodes indices for river sources
-		std::vector<int> source_nodes;
-		// List of river nodes
-		std::vector<int> river_nodes;
-		// stack (topological order), for rivers
-		std::vector<int> river_stack;
-		// converts node index to index in river node
-		std::map<int,int> node2rnode;
-		// converts node index to junction order
-		std::map<int,int> junctions;
-		// node index to flow distance
-		std::vector<float> flowdistance;
-		// I do not remember what it is Oo
-		std::vector<int> sourceID;
-
-		// DDB stuff
-		// Is the node a drainage boundary
-		std::vector<bool> isDD;
-		// Label of the drainage basins:
-		// In steepest descent, each node belongs to a single watershed
-		std::vector<int> basin_labels;
-		// number of basin labels
-		int nbasins = 0;
-
-
-		// DEBUG STUFF
-		// temporary vector I am using for outputting floating point values
-		std::vector<float> debugfloat;
-
-
-		// Modelling stuff (now moved somewhere else)
-		std::vector<Label> labels;
-
-
-		
-
+	
 
 
 		// ------------------------------------------------
@@ -174,28 +140,15 @@ class Graph
 
 		// Constructors
 		// #->Empty constructor
-		Graph(){;};
-		Graph(std::vector<float> mock)
-		{
-			// std::cout << "Yolo yolo beng beng from c++" << std::endl;
-			this->topography.clear();
-			this->topography = mock;
-		};
+		MGraph(){;};
 
-		Graph(int nx, int ny, int nnodes, float dx, float dy, float xmin, float ymin, std::vector<float>& numtopo)
+		MGraph(int nx, int ny, int nnodes, float dx, float dy, float xmin, float ymin, std::vector<float>& numtopo)
 		{
 			this->set_dimensions(nx,ny,nnodes,dx,dy,xmin,ymin);
 			this->set_default_boundaries("4edges");
-			this->topography = numtopo;
+			this->topography = &numtopo;
 		}
 	
-
-
-		void ingest_topo_from_C(uintptr_t topo, int carray_size)
-		{
-			const float* ptr = reinterpret_cast<float*>(topo);
-			this->topography = std::vector<float>(ptr,ptr+carray_size); 
-		}
 
 		// ------------------------------------------------
 
@@ -284,12 +237,6 @@ class Graph
 
 			this->extents = {this->Xmin, this->Xmin +  (this->nx + 1) * this->dx, this->Ymin, this->Ymin + (this->ny + 1) * this->dy};
 
-
-
-			// Initialising A
-			this->area = std::vector<float>(this->nnodes);
-
-			// this->save2file("topo", this->topography);
 		}
 
 		void set_default_boundaries(std::string bountype)
@@ -378,184 +325,32 @@ class Graph
 
 		}
 
-		// Draft for a function using connected comonents to solve stuff
-		// Check connected components here:
-			// this->compute_graph("carve");
-			// std::vector<int>  baslab(this->nnodes,-1);
-			// int lab = -1;
-			// for(int i = 0; i < this->nnodes; ++i)
-			// {
-				
-			// 	int tnode = this->stack[i];
-			// 	int trec = this->receivers[tnode];
-				
-			// 	if(this->boundary[tnode] == -1)
-			// 		continue;
-
-			// 	if(tnode == trec)
-			// 		lab++;
-
-			// 	baslab[tnode] = lab;	
-			// }
-
-
-			// std::vector<bool> has0(lab,false);
-
-			// for(int i = 0; i < this->nnodes; ++i)
-			// {
-				
-			// 	int tnode = this->stack[i];				
-			// 	if(this->boundary[tnode] == -1 || baslab[tnode] == -1)
-			// 		continue;
-
-			// 	int lalab = baslab[tnode];
-			// 	if(this->boundary[tnode] == 0)
-			// 		has0[lalab] = true;
-			// }
-
-			// for(int b=0; b<has0.size(); ++b)
-			// {
-			// 	if(has0[b] == false)
-			// 	{
-			// 		for(int i = 0; i < this->nnodes; ++i)
-			// 		{
-			// 			int tnode = this->stack[i];
-			// 			if (baslab[tnode] == b)
-			// 			{
-			// 				this->boundary[tnode] = 0;
-			// 				break;
-			// 			}
-			// 		}
-			// 	}
-			// }
-
-		void compute(std::string depression_solver)
-		{
-			this->compute_graph(depression_solver);
-			this->calculate_area();
-			this->d_sources(1e6);
-			this->compute_river_nodes();
-		}
-
-		// This function creates the graph of nodes
-		// It computes the neighbours of each node in a given direction
-		// Direction is a string that can be either "donors", "receivers" or "both"
-		void compute_graph_old(std::string depression_solver)
-		{
-			// const float* ptr = reinterpret_cast<float*>(ttopography);
-			// std::vector<float>  topography; topography.reserve(this->nnodes_t);
-			// for (int i=0; i< this->nnodes; ++i)
-			//	topography.emplace_back(ptr[i]);
-			// std::cout << "cpp1" << std::endl;
-			// this->compute_graph_SF_both();
-			this->compute_graph_SF_both();
-			// std::cout << "cpp2" << std::endl;
-			this->compute_topological_order();
-			// std::cout << "cpp3" << std::endl;
-			if(depression_solver != "none")
-			{
-				// std::cout << "cpp4" << std::endl;
-				this->solve_depressions(depression_solver);
-				// std::cout << "cpp5" << std::endl;
-				this->compute_topological_order();
-				// std::cout << "cpp6" << std::endl;
-			}
-		}
 		void compute_graph(std::string depression_solver)
 		{
-			// const float* ptr = reinterpret_cast<float*>(ttopography);
-			// std::vector<float>  topography; topography.reserve(this->nnodes_t);
-			// for (int i=0; i< this->nnodes; ++i)
-			//	topography.emplace_back(ptr[i]);
-			// std::cout << "cpp1" << std::endl;
-			// this->compute_graph_SF_both();
 			this->compute_graph_SF_both_v2();
-			// std::cout << "cpp2" << std::endl;
 			this->compute_topological_order();
-			// std::cout << "cpp3" << std::endl;
 			if(depression_solver != "none")
 			{
-				// std::cout << "cpp4" << std::endl;
 				this->solve_depressions(depression_solver);
-				// std::cout << "cpp5" << std::endl;
 				this->compute_topological_order();
-				// std::cout << "cpp6" << std::endl;
 			}
 		}
 
-		void compute_graph_SF_both()
-		{
-			// Initialising the graph dimesions for the receivers
-			// All of thenm have the graph dimension
-			this->receivers = std::vector<int>(this->nnodes_t, -1);
-			this->distance2receivers = std::vector<float>(this->nnodes_t, -1);
-			this->donors = std::vector<std::vector<int> >(this->nnodes_t);
-			for (auto& v:this->donors)
-				v.reserve(8);
-
-			// Iterating through all the nodes and finding the max slope
-			int n_donors_iintotal = 0;
-
-
-			for(int i = 0; i < this->nnodes; ++i)
-			{
-				this->receivers[i] = i;
-				if(this->can_flow_out_there(i) || this->can_flow_even_go_there(i) == false)
-				{
-					continue;
-				}
-
-				auto neighbours = this->get_neighbours(i);
-
-				float this_elev = topography[i];
-				float max_slope = -1;
-				int id_max_slope = -1;
-				float dist_max_slope = -1;
-				for (auto& ne:neighbours)
-				{
-					if(this->can_flow_even_go_there(ne.node) == false)
-						continue;
-
-					if(topography[ne.node] < this_elev)
-					{
-						double this_slope = (this_elev - topography[ne.node])/ne.distance;
-						if(this_slope > max_slope)
-						{
-							max_slope = this_slope;
-							id_max_slope = ne.node;
-							dist_max_slope = ne.distance;
-						}
-					}
-				}
-
-				if(id_max_slope == -1)
-					continue;
-
-				this->receivers[i] = id_max_slope;
-				this->distance2receivers[i] = dist_max_slope;
-				this->donors[id_max_slope].emplace_back(i);
-			}
-
-		}
 
 		void compute_graph_SF_both_v2()
 		{
 			// Initialising the graph dimesions for the receivers
 			// All of thenm have the graph dimension
-			this->receivers.clear();
-			this->distance2receivers.clear();
-			// std::cout << " qwe1" << std::endl;
-			this->receivers = std::vector<int>(this->nnodes_t, -1);
-			// std::cout << " qwe2" << std::endl;
-			this->distance2receivers = std::vector<float>(this->nnodes_t, -1);
+			this->Sreceivers.clear();
+			this->Sdistance2receivers.clear();
+			this->Sreceivers = std::vector<int>(this->nnodes_t, -1);
+			this->Sdistance2receivers = std::vector<float>(this->nnodes_t, -1);
 			std::vector<float> SS(this->nnodes_t, 0.);
-			// std::cout << " qwe3" << std::endl;
 
 			for (int i=0; i < this->nnodes; ++i)
 			{
 				this->receivers[i] = i;
 			}
-			// std::cout << " qwe4" << std::endl;
 
 			// Iterating through all the nodes and finding the max slope
 			int n_donors_iintotal = 0;
@@ -563,7 +358,6 @@ class Graph
 
 			for(int row = 0; row < this->ny; ++row)
 			{
-				// switc = !switc;
 				for(int col = 0; col < this->nx; ++col)
 				{
 					int i = row * this->nx + col;
@@ -573,34 +367,42 @@ class Graph
 						continue;
 					}
 
+					bool check = (col > 1 && row > 1 && col < this->nx - 2 && row < this->ny - 2 ) ? false : true;
+
+
 					if(col > 0 && row > 0 && col < this->nx -1 && row < this->ny - 1 )
 					{
 						this->check_neighbour_v22(SS,this->get_topleft_index(i), i, this->dxy);
+						this->check_neighbour_v22_MF(check, this->get_topleft_index(i), i, this->dxy);
 						this->check_neighbour_v22(SS,this->get_top_index(i), i, this->dy);
+						this->check_neighbour_v22_MF(check,this->get_top_index(i), i, this->dy);
 						this->check_neighbour_v22(SS,this->get_topright_index(i), i, this->dxy);
+						this->check_neighbour_v22_MF(check,this->get_topright_index(i), i, this->dxy);
 						this->check_neighbour_v22(SS,this->get_right_index(i), i, this->dx);
+						this->check_neighbour_v22_MF(check,this->get_right_index(i), i, this->dx);
 					}
 					else
 					{
 						this->check_neighbour_v22(SS,this->get_top_index(i), i, this->dy);
+						this->check_neighbour_v22_MF(check,this->get_top_index(i), i, this->dy);
 						this->check_neighbour_v22(SS,this->get_left_index(i), i, this->dx);
+						this->check_neighbour_v22_MF(check,this->get_left_index(i), i, this->dx);
 						this->check_neighbour_v22(SS,this->get_right_index(i), i, this->dx);
+						this->check_neighbour_v22_MF(check,this->get_right_index(i), i, this->dx);
 						this->check_neighbour_v22(SS,this->get_bottom_index(i), i, this->dy);
+						this->check_neighbour_v22_MF(check,this->get_bottom_index(i), i, this->dy);
 						this->check_neighbour_v22(SS,this->get_topright_index(i), i, this->dxy);
+						this->check_neighbour_v22_MF(check,this->get_topright_index(i), i, this->dxy);
 						this->check_neighbour_v22(SS,this->get_topleft_index(i), i, this->dxy);
+						this->check_neighbour_v22_MF(check,this->get_topleft_index(i), i, this->dxy);
 						this->check_neighbour_v22(SS,this->get_bottomright_index(i), i, this->dxy);
+						this->check_neighbour_v22_MF(check,this->get_bottomright_index(i), i, this->dxy);
 						this->check_neighbour_v22(SS,this->get_bottomleft_index(i), i, this->dxy);
+						this->check_neighbour_v22_MF(check,this->get_bottomleft_index(i), i, this->dxy);
 					}
-
 				}
 			}
-
-			// std::cout << " qwe5" << std::endl;
-
-
 			this->recompute_SF_donors_from_receivers();
-
-			// std::cout << " qwe6" << std::endl;
 		}
 
 		void check_neighbour_v22(std::vector<float>& SS, int ne, int i, float dist)
@@ -619,8 +421,8 @@ class Graph
 				if(this_slope > SS[i])
 				{
 					SS[i] = this_slope;
-					this->receivers[i] = ne;
-					this->distance2receivers[i] = dist;
+					this->Sreceivers[i] = ne;
+					this->Sdistance2receivers[i] = dist;
 				}
 			}
 			else if (topography[ne] > this_elev && this->can_flow_out_there(ne) == false)
@@ -629,166 +431,63 @@ class Graph
 				if(this_slope > SS[ne])
 				{
 					SS[ne] = this_slope;
-					this->receivers[ne] = i;
-					this->distance2receivers[ne] = dist;
+					this->Sreceivers[ne] = i;
+					this->Sdistance2receivers[ne] = dist;
 				}
 			}
-
 		}
 
-		void check_neighbour_v2(std::vector<float>& SS, Neighbour<int,float> ne, int i)
+		void check_neighbour_v22_MF(bool check, int from, int to, float dist)
 		{
-			if (ne.node < 0)
-				return;
-
-			if(this->can_flow_even_go_there(ne.node) == false)
-				return;
 			
-			float this_elev = this->topography[i];
+			if((*this->topography)[from] == (*this->topography)[to])
+				return;
 
-			if(topography[ne.node] < this_elev && this->can_flow_out_there(i) == false)
+			int temp = from;
+			if((*this->topography)[from] < (*this->topography)[to])
 			{
-				double this_slope = (this_elev - topography[ne.node])/ne.distance;
-				if(this_slope > SS[i])
-				{
-					SS[i] = this_slope;
-					this->receivers[i] = ne.node;
-					this->distance2receivers[i] = ne.distance;
-				}
-			}
-			else if (topography[ne.node] > this_elev && this->can_flow_out_there(ne.node) == false)
-			{
-				double this_slope = (topography[ne.node] - this_elev)/ne.distance;
-				if(this_slope > SS[ne.node])
-				{
-					SS[ne.node] = this_slope;
-					this->receivers[ne.node] = i;
-					this->distance2receivers[ne.node] = ne.distance;
-				}
+				from = to;
+				to = temp;
 			}
 
+			if(check)
+			{
+				for(auto rec:this->receivers[from])
+				{
+					if(rec == to)
+						return;
+				}
+			}
+			this->receivers[from].emplace_back(to);
+			this->distance2receivers[from].emplace_back(dist);
+			this->donors[to].emplace_back(from);
 		}
 
-
+	
 
 		void recompute_SF_donors_from_receivers()
 		{
 			// Initialising the graph dimesions for the donors
 			// All of thenm have the graph dimension
-			// std::cout << " qwe41" << std::endl;
-			this->donors = std::vector<std::vector<int> >(this->nnodes);
-			// std::cout << " qwe43" << std::endl;
+			this->Sdonors = std::vector<std::vector<int> >(this->nnodes);
 
 			for(int i=0; i < this->nnodes; ++i)
 			{
 				// SF so rid == i cause there is only 1 rec
-				int trec = this->receivers[i];
+				int trec = this->Sreceivers[i];
 				if(trec == i)
 					continue;
-
-				this->donors[trec].emplace_back(i);
+				this->Sdonors[trec].emplace_back(i);
 			}
-
-			// std::cout << "qwe4end" << std::endl;
-
 		}
 
 		void solve_depressions(std::string& depression_solver)
 		{
-			// std::cout << "cpp4.1" << std::endl;
-			Cordonnier2019_v2<int,float> depsolver(*this);
-			// Cordonnier2019<int,float> depsolver(*this, this->topography);
-			// std::cout << "cpp4.2" << std::endl;
+			
+			Cordonnier2019_v2MF<int,float> depsolver(*this);
 
 			if(depsolver.npits > 0)
 				depsolver.update_receivers(depression_solver);
-			// depsolver.update_receivers(depression_solver, this->topography);
-			// std::cout << "cpp4.3" << std::endl;
-		}
-
-
-		void calculate_area()
-		{
-			this->area = std::vector<float>(this->nnodes,0.);
-
-			for (int i=this->nnodes-1; i>=0;--i)
-			{
-				int tnode = this->stack[i];
-				this->area[tnode] += this->cellarea;
-				int trec =this->receivers[tnode];
-				if(trec != tnode)
-				{
-					this->area[trec] += this->area[tnode];
-				}
-			}
-			// std::cout << "Max area is " << this->_max(this->area) << std::endl;
-		}
-
-
-		void diffuse_area(float coeff){this->area = On_gaussian_blur(coeff, this->area, this->nx, this->ny);}
-
-		float gradient(int tnode){return (this->topography[tnode] - this->topography[this->receivers[tnode]])/this->distance2receivers[tnode];}
-
-		void calculate_discharge_uniprec(float prec)
-		{
-			this->area = std::vector<float>(this->nnodes,0.);
-
-			for (int i=this->nnodes-1; i>=0;--i)
-			{
-				int tnode = this->stack[i];
-				this->area[tnode] += this->cellarea * prec;
-				int trec =this->receivers[tnode];
-				if(trec != tnode)
-				{
-					this->area[trec] += this->area[tnode];
-				}
-			}
-			// std::cout << "Max area is " << this->_max(this->area) << std::endl;
-		}
-
-		void calculate_discharge_prec(std::vector<float>& prec)
-		{
-			this->area = std::vector<float>(this->nnodes,0.);
-
-			for (int i=this->nnodes-1; i>=0;--i)
-			{
-				int tnode = this->stack[i];
-				this->area[tnode] += this->cellarea * prec[tnode];
-				int trec =this->receivers[tnode];
-				if(trec != tnode)
-				{
-					this->area[trec] += this->area[tnode];
-				}
-			}
-			// std::cout << "Max area is " << this->_max(this->area) << std::endl;
-		}
-
-		std::vector<float> get_steepest_slope(bool negto0 = true)
-		{
-
-			if(this->receivers.size() == 0)
-				throw std::runtime_error("Cannot calculate steepest slope if the graph is not computed");
-
-			std::vector<float> out(this->nnodes_t, 0.);
-
-			for(int i = 0; i < this->nnodes_t; ++i)
-			{
-				
-				int rec = this->receivers[i];
-				
-				if (rec == i)
-				{
-					out[i] = 0;
-					continue;
-				}
-
-				out[i] = ( this->topography[i] - this->topography[rec] ) / this->distance2receivers[i];
-
-				if(out[i] < 0 && negto0)
-					out[i] = 0;
-			}
-
-			return out;
 		}
 
 

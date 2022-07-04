@@ -23,6 +23,7 @@
 #include "chonkutils.hpp"
 #include "graph.hpp"
 #include "wapart.hpp"
+#include "PerlinNoise.hpp"
 
 #include "npy.hpp"
 #ifdef __EMSCRIPTEN__
@@ -156,6 +157,20 @@ public:
 			if(this->graph.boundary[i] > 0 )
 				this->graph.topography[i] += static_cast <float> (rand()) / (static_cast <float> (RAND_MAX/intensity));
 		}
+	}
+
+	void add_perlin_noise(int dimension, int octaves, float xscale, float yscale, float scale)
+	{
+		siv::BasicPerlinNoise<float> perlin;
+
+		for(int i = 0; i < this->graph.nnodes; ++i)
+		{
+			float x,y;
+			this->graph.XY_from_nodeid(i,x,y);
+			this->graph.topography[i] += perlin.octave2D_01((x * xscale), (y * yscale), octaves) * scale;
+		}
+
+
 	}
 
 
@@ -358,7 +373,8 @@ public:
 			// process fluvial if fluvial
 			else if (fluvialSPL)
 			{
-				this->node_solve_spl(node, rec, tlab.mref, tlab.nref, tlab.Kref, this->graph.area[node], tU);
+				float this_K = (is_K_mod)? this->K_mod[node] : tlab.Kref ;
+				this->node_solve_spl(node, rec, tlab.mref, tlab.nref, this_K, this->graph.area[node], tU);
 			}
 			
 			// Save max topography if needed
@@ -732,6 +748,102 @@ public:
 	
 	}
 
+	void run_cidre_hillslope_basic(float kappa, float maxD, float oSc)
+	{
+		std::vector<float> Qs(this->graph.nnodes,0);
+
+		for (int i = this->graph.nnodes - 1 ; i >= 0 ; --i)
+		{
+			int tnode = this->graph.stack[i];
+			if(this->graph.can_flow_out_there(tnode) || this->graph.can_flow_even_go_there(tnode) == false)
+				continue;
+			int rec = this->graph.receivers[tnode];
+			float tS = std::fmax(1e-6,this->graph.gradient(tnode));
+			float dx = this->graph.distance2receivers[tnode];
+			
+			bool isbellowSc = (tS < oSc - 1e-6);
+
+			 
+
+			float L = dx / (1 - std::pow(tS/oSc,2) );
+
+			float D = std::fmin(isbellowSc ? ((L > dx) ?  Qs[tnode]/L : Qs[tnode] / dx) : 0, maxD * Qs[tnode]/dx);
+			float E = isbellowSc ? kappa * tS: (std::abs(tS - oSc) * dx)/this->timestep;
+
+			if(E > 1 || D > 1)
+				std::cout << E << "||" << D << "||" << D * dx << " vs " << Qs[tnode] << "||" << Qs[tnode] << "||" << L  << " = " <<dx << "/" << (1 - std::pow(tS/oSc,2) ) << std::endl;
+
+			Qs[rec] += Qs[tnode] + (E - D) * dx;
+			this->graph.topography[tnode] += (D - E) * this->timestep;
+		}
+
+	}
+
+	void run_SPL_basic_for_hydraulic_erosion(float kcof, std::vector<bool>& mask)
+	{
+
+		// 1) compute graph
+		this->graph.compute_graph(this->minima_solver);
+
+		// 2) calculate area/discharge according to plan
+		if(qamode == 0)
+			this->graph.calculate_area();
+		else if(qamode == 1)
+			this->graph.calculate_discharge_uniprec(this->uPrec);
+		else if(qamode == 2)
+			this->graph.calculate_discharge_prec(this->prec);
+
+		Label& tlab = this->labels[0];
+		for (auto tnode:this->graph.stack)
+		{
+			if(this->graph.can_flow_out_there(tnode) || this->graph.can_flow_even_go_there(tnode) == false || mask[tnode] == false)
+				continue;
+
+			// Newton-rahpson method to solve non linear equation, see Braun and Willett 2013
+			float epsilon;
+
+			// A bit of factorisation to clarify the equation
+			float this_K = (is_K_mod)? this->K_mod[tnode] : tlab.Kref ;
+			this_K *= kcof;
+			float streamPowerFactor = this_K * pow(this->graph.area[tnode], tlab.mref) * this->timestep;
+			float slope; // Slope.
+			float new_zeta = this->graph.topography[tnode]; float old_zeta = this->graph.topography[tnode]; // zeta = z = elevation
+			float dx = this->graph.distance2receivers[tnode];
+			// iterate until you converge on a solution. Uses Newton's method.
+			int nit = 0;
+			do
+			{
+				// Get the slope
+				slope = (new_zeta - this->graph.topography[this->graph.receivers[tnode]]) / dx;
+				// Check backslope or no slope ie no erosion
+				if(slope <= 0)
+				{
+					epsilon = 0;
+				}
+				else
+				{
+					// Applying the newton's method
+					epsilon = (new_zeta - old_zeta + streamPowerFactor * std::pow(slope, tlab.nref)) /
+					(1 + streamPowerFactor * (tlab.nref/dx) * std::pow(slope, tlab.nref - 1));
+				}
+				// iterate the result
+				old_zeta = new_zeta;
+				new_zeta -= epsilon;
+				++nit;
+				if(nit > 100)
+				{
+					std::cout << dx << "||" << slope << "||" << streamPowerFactor << "||" << std::pow(slope, tlab.nref - 1) << std::endl;
+					epsilon = 0;	
+				}
+				// I want it to run while it can still have an effect on the elevation
+			} while (abs(epsilon) > 1e-3);
+
+			this->graph.topography[tnode] = new_zeta;
+
+		}
+	
+	}
+
 	void apply_vertical_motions()
 	{
 		for(int i=0; i<this->graph.nnodes; ++i)
@@ -798,6 +910,7 @@ public:
 			{
 				// if mask is false: no flow
 				this->graph.boundary[i] = -1;
+				this->graph.topography[i] = 0;
 				continue;
 			}
 			// Else normal flow
@@ -844,7 +957,77 @@ public:
 	void set_Acritbeach(float A){this->Acritbeach = A;}
 
 
+	void hydraulic_erosion_graph_sources(float coefK, int n_sources)
+	{
+		std::vector<int> sources; sources.reserve(this->graph.nnodes);
+		for(int i=0; i<this->graph.nnodes; ++i)
+		{
+			if(this->graph.can_flow_even_go_there(i) == false)
+				continue;
+			if(this->graph.donors[i].size() == 0)
+				sources.emplace_back(i);
+		}
 
+		sources.shrink_to_fit();
+		std::vector<bool> source_done(sources.size(),false), need_proc(this->graph.nnodes, false);
+
+		for(int nsamples = 0; nsamples < n_sources; ++nsamples)
+		{
+			while(true)
+			{
+				int randpos = floor(static_cast <float> (rand()) / (static_cast <float> (RAND_MAX))  * int( sources.size() ) );
+				if(source_done[randpos])
+					continue;
+				
+				source_done[randpos] = true;
+				need_proc[sources[randpos]] = true;
+				break;
+			}
+		}
+
+		for(int i =  this->graph.nnodes - 1; i >= 0; --i)
+		{
+			int tnode = this->graph.stack[i];
+			if(need_proc[tnode] == false)
+				continue;
+			int trec = this->graph.receivers[tnode];
+			need_proc[trec] = true;
+		}
+
+		this->run_SPL_basic_for_hydraulic_erosion(coefK, need_proc);
+
+	}
+
+	void hydraulic_erosion_graph_all(float coefK, int n_sources)
+	{
+
+		std::vector<bool> need_proc(this->graph.nnodes, false);
+
+		for(int nsamples = 0; nsamples < n_sources; ++nsamples)
+		{
+			while(true)
+			{
+				int randpos = floor(static_cast <float> (rand()) / (static_cast <float> (RAND_MAX))  * int( this->graph.nnodes ) );
+				if(need_proc[randpos])
+					continue;
+				
+				need_proc[randpos] = true;
+				break;
+			}
+		}
+
+		for(int i =  this->graph.nnodes - 1; i >= 0; --i)
+		{
+			int tnode = this->graph.stack[i];
+			if(need_proc[tnode] == false)
+				continue;
+			int trec = this->graph.receivers[tnode];
+			need_proc[trec] = true;
+		}
+
+		this->run_SPL_basic_for_hydraulic_erosion(coefK, need_proc);
+
+	}
 
 
 
