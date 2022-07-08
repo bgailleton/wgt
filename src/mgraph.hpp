@@ -74,7 +74,8 @@ class MGraph
 		std::vector<std:vector<int> > receivers;
 		std::vector<std::vector<int> > donors;
 		std::vector<std:vector<T> > distance2receivers;
-ß
+
+
 		// #->stack: topological order from downstream to upstream direction
 		std::vector<int> stack;
 
@@ -148,9 +149,7 @@ class MGraph
 				this->receivers[i] = i;
 			}
 
-			// Iterating through all the nodes and finding the max slope
-			int n_donors_iintotal = 0;
-			// bool switc = false;
+			ß 
 
 			
 			}
