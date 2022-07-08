@@ -101,6 +101,7 @@ class MGraph
 		// Constructors
 		// #->Empty constructor
 		MGraph(){;};
+		MGraph(int nnodes){this->nnodes = nnodes; this->nnodes_t = nnodes_t;};
 
 		// ------------------------------------------------
 
@@ -115,7 +116,7 @@ class MGraph
 		// ------------------------------------------------
 
 		template<class Neighbourer_t>
-		void compute_graph(std::string depression_solver)
+		void compute_graph(std::string depression_solver, Neighbourer_t& neighbourer, topo_t& topography)
 		{
 			this->compute_graph_both_v2();
 			this->compute_TO_SF_stack_version();
@@ -301,13 +302,6 @@ class MGraph
 
 		// All the methods related to accessing and calculating neighbours
 		// ------------------------------------------------
-
-		void compute_topological_order()
-		{
-			this->compute_TO_SF_stack_version();
-		}
-
-
 		void compute_TO_SF_stack_version()
 		{
 			// Initialising the stack
@@ -370,7 +364,7 @@ class MGraph
 		
 
 
-		void compute_MF_topological_order(bool calculate_gradient = true)
+		void compute_MF_topological_order()
 		{
 
 			this->stack.clear();
@@ -382,7 +376,7 @@ class MGraph
 		  int nstack = -1;
 		  for(int i=0; i<this->isize;++i)
 		  {
-		  	ndons[i] = this->get_donors_ID(i).size();
+		  	ndons[i] = this->donors[i].size();
 		  }
 
 		  // we go through the nodes
@@ -406,7 +400,7 @@ class MGraph
 		      this->stack.emplace_back(ijn);
 		      // std::cout << ijn << "|";
 
-		      auto recs = this->get_receivers_ID(ijn);
+		      auto recs = this->receivers[ijn];
 
 		      for(int ijk=0; ijk < int(recs.size()); ++ijk)
 		      {
