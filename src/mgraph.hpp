@@ -240,11 +240,11 @@ class MGraph
 
 		
 		/// this function enforces minimal slope 
-		void enforce_minimal_slope_SS(T slope)
+		void enforce_minimal_slope_SS(T slope, Neighbourer_t& neighbourer)
 		{
 			for(auto node:this->stack)
 			{
-				if(this->can_flow_out_there(node) || this->can_flow_even_go_there(node) == false)
+				if(neighbourer.can_flow_out_there(node) || neighbourer.can_flow_even_go_there(node) == false)
 					continue;
 				int rec = this->Sreceivers[node];
 				T dz = (*this->topography)[node] - (*this->topography)[rec];
@@ -256,12 +256,6 @@ class MGraph
 				}
 			}
 		}
-
-
-
-
-
-
 
 		// Return an array of receivers of a given node
 		// Return array in a DirectedNeighbour structure: node ID receiver ID and distance
