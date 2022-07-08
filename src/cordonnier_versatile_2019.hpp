@@ -1928,7 +1928,6 @@ public:
 
 	void update_receivers(std::string& method)
 	{
-		auto t1 = high_resolution_clock::now();
 
 		if(method == "simple" || method == "Simple")
 			this->_update_pits_receivers_sompli();
@@ -1938,15 +1937,13 @@ public:
 		}
 		else if (method == "fill")
 		{
-			// std::cout << "gwamoulg" << std::endl;
 			this->_update_pits_receivers_fill();
 		}
-		// std::cout << "fabul" << std::endl;
+
 		this->graph->recompute_SF_donors_from_receivers();
 
-		auto t2 = high_resolution_clock::now();
-		duration<double, std::milli> ms_double = t2 - t1;
-		// std::cout << "Update recs -> " << ms_double.count() << " milliseconds" << std::endl;;
+		this->graph->recompute_MF_impose_slope_SS();
+
 
 	}
 
