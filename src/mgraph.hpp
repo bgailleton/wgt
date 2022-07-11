@@ -155,9 +155,10 @@ class MGraph
 			this->recompute_SF_donors_from_receivers();
 		}
 
-		void recompute_MF_impose_slope_SS()
+		template<class topo_t>
+		void recompute_MF_impose_slope_SS(topo_t& topography)
 		{
-			std::vector<T> temptopo((*this->topography));
+			std::vector<T> temptopo(topography);
 			std::vector<T>* otopo = this->topography;
 
 			this->topography = &temptopo;
@@ -240,19 +241,20 @@ class MGraph
 
 		
 		/// this function enforces minimal slope 
-		void enforce_minimal_slope_SS(T slope, Neighbourer_t& neighbourer)
+		template<class Neighbourer_t, class topo_t>
+		void enforce_minimal_slope_SS(T slope, Neighbourer_t& neighbourer, topo_t& topography)
 		{
 			for(auto node:this->stack)
 			{
 				if(neighbourer.can_flow_out_there(node) || neighbourer.can_flow_even_go_there(node) == false)
 					continue;
 				int rec = this->Sreceivers[node];
-				T dz = (*this->topography)[node] - (*this->topography)[rec];
+				T dz = topography[node] - topography[rec];
 
 				if(dz <= 0)
 				{
 					T d2rec = this->Sdistance2receivers[node];
-					(*this->topography)[node] = (*this->topography)[rec] + slope * d2rec;
+					topography[node] = topography[rec] + slope * d2rec;
 				}
 			}
 		}
