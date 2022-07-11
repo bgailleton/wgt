@@ -98,7 +98,7 @@ class MGraph
 		// Constructors
 		// #->Empty constructor
 		MGraph(){;};
-		MGraph(int nnodes){this->nnodes = nnodes; this->nnodes_t = nnodes_t;};
+		MGraph(int nnodes){this->nnodes = nnodes; this->nnodes_t = nnodes;};
 
 		// ------------------------------------------------
 
@@ -115,11 +115,11 @@ class MGraph
 		template<class Neighbourer_t, class topo_t>
 		void compute_graph(std::string depression_solver, Neighbourer_t& neighbourer, topo_t& topography)
 		{
-			this->compute_graph_both_v2();
+			this->compute_graph_both_v2(neighbourer,topography);
 			this->compute_TO_SF_stack_version();
 			if(depression_solver != "none")
 			{
-				this->solve_depressions(depression_solver);
+				this->solve_depressions(depression_solver, neighbourer, topography);
 				this->compute_TO_SF_stack_version();
 			}
 		}
@@ -145,7 +145,7 @@ class MGraph
 
 
 			for (int i=0; i < this->nnodes; ++i)
-				this->receivers[i] = i;
+				this->Sreceivers[i] = i;
 
 			neighbourer.build_mgraph(SS, Sdonors, Sreceivers, receivers,donors, Sdistance2receivers, distance2receivers, topography);
 			
@@ -226,13 +226,15 @@ class MGraph
 			}
 		}
 
-		void solve_depressions(std::string& depression_solver)
+		template<class Neighbourer_t, class topo_t>
+		void solve_depressions(std::string& depression_solver , Neighbourer_t& neighbourer, topo_t& topography)
 		{
 			
-			Cordonnier2019_v2MF<int,T> depsolver(*this);
+			LMRerouter depsolver(neighbourer, topography, this->Sreceivers,  this->Sdonors,  this->Sdistance2receivers, this->stack);
+
 
 			if(depsolver.npits > 0)
-				depsolver.update_receivers(depression_solver);
+				depsolver.update_receivers(depression_solver,neighbourer, topography, this->Sreceivers,  this->Sdonors,  this->Sdistance2receivers, this->stack);
 		}
 
 
@@ -341,14 +343,7 @@ class MGraph
 
 			if(this->stack.size() != this->nnodes_t)
 			{
-				std::cout << "Stack error, "<< this->stack.size() << "|" << this->topography.size() << " checking for nans..." << std::endl;
-				for(auto v: this->topography)
-				{
-					if(std::isfinite(v) == false)
-					{
-						std::cout << "Yes, there are nans..." << std::endl;
-					}
-				}
+				std::cout << "Stack error, "<< this->stack.size() << "|" << this->nnodes << " checking for nans..." << std::endl;
 				throw std::runtime_error("Stack error: should be " + std::to_string(this->nnodes_t) + " but is " + std::to_string(this->stack.size()));
 			}
 
