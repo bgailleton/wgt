@@ -202,6 +202,70 @@ class UnionFindv2
 };
 
 
+template<class n_t, class dist_t, class Neighbourer_t, class topo_t>
+class UnionFindv3
+{
+	public:
+		UnionFindv3(int size,LMRerouter<n_t,dist_t,Neighbourer_t,topo_t> &cod )
+		{
+			this->cod = &cod;
+			this->_parent = std::vector<int>(size);
+			this->_open = std::vector<bool>(size);
+			for(int i=0; i<size; i++)
+			{
+				this->_parent[i] = i;
+				this->_open[i] = this->cod->is_open_basin[i];
+			}
+			this->_rank = std::vector<int>(size,0);
+		};
+
+		void Union(int& x, int& y)
+		{
+			int xroot = this->Find(x);
+			int yroot = this->Find(y);
+
+			if (xroot != yroot)
+			{
+				if(this->_rank[xroot] < this->_rank[yroot])
+						this->_parent[xroot] = yroot;
+				else
+				{
+					this->_parent[yroot] = xroot;
+					if(this->_rank[xroot] == this->_rank[yroot])
+						this->_rank[xroot] ++;
+				}
+
+				if(this->_open[xroot] || this->_open[yroot])
+				{
+					this->_open[xroot] = true;
+					this->_open[yroot] = true;
+				}
+			}
+		}
+
+		int Find(int& x)
+		{
+			int xp = x,xc;
+			while (true)
+			{
+				xc = xp;
+				xp = this->_parent[xc];
+				if (xp == xc)
+					break;
+			}
+			this->_parent[x] = xc;
+			return xc;
+		}
+
+		std::vector<int> _parent;
+		std::vector<int> _rank;
+		std::vector<bool> _open;
+		LMRerouter<n_t,dist_t,Neighbourer_t,topo_t> *cod;
+
+
+};
+
+
 template<class n_t, class dist_t>
 class Cordonnier2019
 {
@@ -2043,7 +2107,7 @@ public:
 		this->basin_to_outlets.reserve(200);
 		this->pits_to_reroute.reserve(200);
 		n_t lab = -1;
-		for(auto tnode: this->graph->stack)
+		for(auto tnode: stack)
 		{
 			if(neighbourer.can_flow_even_go_there(tnode) == false)
 			{
@@ -2179,7 +2243,7 @@ public:
 		this->bas2links = std::vector< std::vector< Link<n_t, dist_t>* > >( this->nbasins, std::vector< Link<n_t, dist_t>* >() );
 		int mstree_size = 0;
 
-		UnionFindv2<n_t,dist_t> uf(nbasins, (*this) );
+		UnionFindv3<n_t,dist_t,Neighbourer_t,topo_t> uf(nbasins, (*this) );
 		int j = 0;
 
 		while(this->pqlinks.empty() == false)
@@ -2445,8 +2509,8 @@ public:
 			// int outlet_from = this->basin_to_outlets[conn_basins[i][1] ];
 			int outlet_from = this->basin_to_outlets[tlink->from];
 
-			neighbourer.Sreceivers[outlet_from] = node_to;
-			neighbourer.Sdistance2receivers[outlet_from] = neighbourer.dx; // just to have a length but it should not actually be used
+			Sreceivers[outlet_from] = node_to;
+			Sdistance2receivers[outlet_from] = neighbourer.dx; // just to have a length but it should not actually be used
 		}
 
 	 
