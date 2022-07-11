@@ -81,10 +81,7 @@ class MGraph
 			// #->stack: topological order from downstream to upstream direction
 		std::vector<int> stack;
 
-		// Coordinate stuff
-		// Xs and Ys are vectors of nx and ny size converting row to y and col to X
-		// Extents holds the cxmin,xmax,ymin,ymax (extent is an option in matplotlib imshow plots)
-		std::vector<T> Xs,Ys, extents;
+
 
 
 		// ------------------------------------------------
@@ -417,8 +414,6 @@ class MGraph
 		  // std::cout << "TO full finished with " << this->topological_order.size() << " versus " << this->isize << std::endl;;
 		}
 
-
-#endif
 
 
 

@@ -69,6 +69,7 @@ public:
 	T Ymin;
 	T Xmax;
 	T Ymax;
+	int not_a_node;
 
 	// Bearer of values
 	// #->boundary: index: node index, value: boundary value
@@ -84,6 +85,11 @@ public:
 	std::vector<std::vector<int> > neighbourer;
 	// -> lengthener is the dx on each directions
 	std::vector<T > lengthener;
+
+	// Coordinate stuff
+	// Xs and Ys are vectors of nx and ny size converting row to y and col to X
+	// Extents holds the cxmin,xmax,ymin,ymax (extent is an option in matplotlib imshow plots)
+	std::vector<T> Xs,Ys, extents;
 
 	D8Neighbourer(){};
 
@@ -266,7 +272,7 @@ public:
 	}
 
 	template<class U, class V>
-	void check_neighbour_v22(std::vector<T>& SS, int ne, int i, T dist, std::vector<std::vector<int> >& Sdonors, std::vector<int>& Sreceivers, std::vector<std::vector<int> >& receivers,
+	void check_neighbour_v22(U& SS, int ne, int i, T dist, std::vector<std::vector<int> >& Sdonors, std::vector<int>& Sreceivers, std::vector<std::vector<int> >& receivers,
 		std::vector<std::vector<int> >& donors, std::vector<T>& Sdistance2receivers, std::vector<std::vector<T> >& distance2receivers, V& topography)
 	{
 		if (ne < 0)
@@ -299,7 +305,7 @@ public:
 		}
 	}
 
-	template<class U, class V>
+	template< class V>
 	void check_neighbour_v22_MF(bool check, int from, int to, T dist, std::vector<std::vector<int> >& Sdonors, std::vector<int>& Sreceivers, std::vector<std::vector<int> >& receivers,
 		std::vector<std::vector<int> >& donors, std::vector<T>& Sdistance2receivers, std::vector<std::vector<T> >& distance2receivers, V& topography)
 	{

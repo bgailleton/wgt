@@ -1370,7 +1370,7 @@ class Cordonnier2019_v2MF
 public:
 
 	// Pointer to the mother graph; NNEDS TO BE SINGLE FLOW
-	MGraph* graph;
+	MGraph<dist_t>* graph;
 
 	// Labelling the watersheds
 	std::vector<n_t> basin_labels;
@@ -1396,7 +1396,7 @@ public:
 
 
 	Cordonnier2019_v2MF(){;};
-	Cordonnier2019_v2MF(MGraph& graph)
+	Cordonnier2019_v2MF(MGraph<dist_t>& graph)
 	{
 		this->graph = &graph;
 		auto t1 = high_resolution_clock::now();
