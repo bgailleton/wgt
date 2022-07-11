@@ -73,9 +73,9 @@ class MGraph
 		std::vector<std::vector<int> > Sdonors;
 		std::vector<T> Sdistance2receivers;
 
-		std::vector<std:vector<int> > receivers;
+		std::vector<std::vector<int> > receivers;
 		std::vector<std::vector<int> > donors;
-		std::vector<std:vector<T> > distance2receivers;
+		std::vector<std::vector<T> > distance2receivers;
 
 
 			// #->stack: topological order from downstream to upstream direction
@@ -115,7 +115,7 @@ class MGraph
 		// All the methods related to accessing and calculating neighbours
 		// ------------------------------------------------
 
-		template<class Neighbourer_t>
+		template<class Neighbourer_t, class topo_t>
 		void compute_graph(std::string depression_solver, Neighbourer_t& neighbourer, topo_t& topography)
 		{
 			this->compute_graph_both_v2();

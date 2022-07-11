@@ -20,6 +20,7 @@ This header file extends the graph to provide routines to process depressions us
 #include <cmath>
 #include <initializer_list>
 #include <chrono>
+#include <unordered_map>
 
 #include "chonkutils.hpp"
 // #include "graph.hpp"
@@ -31,7 +32,11 @@ using std::chrono::milliseconds;
 
 
 class Graph;
+template<class T>
 class MGraph;
+
+template<class n_t, class dist_t, class Neighbourer_t, class topo_t>
+class LMRerouter;
 
 template<class n_t, class dist_t>
 class Cordonnier2019_v2;
@@ -221,8 +226,6 @@ class Cordonnier2019
 		Cordonnier2019(){;};
 		Cordonnier2019(Graph& graph, std::vector<dist_t>& elevation)
 		{
-
-			sleep(1);
 			this->graph = &graph;
 			this->compute_basins_and_pits();
 			this->preprocess_flowrouting(elevation);
@@ -1968,7 +1971,7 @@ public:
 
 
 
-template<class n_t, class dist_t>
+template<class n_t, class dist_t, class Neighbourer_t, class topo_t>
 class LMRerouter
 {
 public:
@@ -1994,7 +1997,8 @@ public:
 
 
 	LMRerouter(){;};
-	LMRerouter()
+
+	LMRerouter(Neighbourer_t& neighbourer,topo_t& topography, std::vector<n_t>& Sreceivers, std::vector<std::vector<n_t> >& Sdonors, std::vector<dist_t>& Sdistance2receivers)
 	{
 		auto t1 = high_resolution_clock::now();
 		this->compute_basins_and_pits();
@@ -2012,7 +2016,7 @@ public:
 		}
 	}
 
-	void preprocess_flowrouting()
+	void preprocess_flowrouting(Neighbourer_t& neighbourer,topo_t& topography, std::vector<n_t>& Sreceivers, std::vector<std::vector<n_t> >& Sdonors, std::vector<dist_t>& Sdistance2receivers)
 	{
 		auto t1 = high_resolution_clock::now();
 
@@ -2033,7 +2037,7 @@ public:
 	}
 
 	// Uses the stack structure to build a quick basin array
-	void compute_basins_and_pits()
+	void compute_basins_and_pits(Neighbourer_t& neighbourer,topo_t& topography, std::vector<n_t>& Sreceivers, std::vector<std::vector<n_t> >& Sdonors, std::vector<dist_t>& Sdistance2receivers)
 	{
 		this->basin_labels = std::vector<n_t>(this->graph->nnodes_t, -1);
 		this->basin_to_outlets.reserve(200);
@@ -2073,7 +2077,7 @@ public:
 		this->nbasins = lab + 1;
 	}
 
-	void _compute_links()
+	void _compute_links(Neighbourer_t& neighbourer,topo_t& topography, std::vector<n_t>& Sreceivers, std::vector<std::vector<n_t> >& Sdonors, std::vector<dist_t>& Sdistance2receivers)
 	{
 
 		// Initialising a matrix of links for each basins in order to stor the minimum elevation links between each pair of basins
@@ -2169,7 +2173,7 @@ public:
 
 	}
 
-	void _compute_mst_kruskal()
+	void _compute_mst_kruskal(Neighbourer_t& neighbourer,topo_t& topography, std::vector<n_t>& Sreceivers, std::vector<std::vector<n_t> >& Sdonors, std::vector<dist_t>& Sdistance2receivers)
 	{
 		// this->mstree = std::vector<n_t>(this->nbasins - 1);
 		this->bas2links = std::vector< std::vector< Link<n_t, dist_t>* > >( this->nbasins, std::vector< Link<n_t, dist_t>* >() );
@@ -2215,7 +2219,7 @@ public:
 
 	}
 
-	void _orient_basin_tree()
+	void _orient_basin_tree(Neighbourer_t& neighbourer,topo_t& topography, std::vector<n_t>& Sreceivers, std::vector<std::vector<n_t> >& Sdonors, std::vector<dist_t>& Sdistance2receivers)
 	{
 
 		this->receivers = std::vector<n_t>(this->nbasins, -1);
@@ -2286,7 +2290,7 @@ public:
 
 	}
 
-	void compute_TO_SF_stack_version()
+	void compute_TO_SF_stack_version(Neighbourer_t& neighbourer,topo_t& topography, std::vector<n_t>& Sreceivers, std::vector<std::vector<n_t> >& Sdonors, std::vector<dist_t>& Sdistance2receivers)
 	{
 		// Initialising the stack
 		this->stack.clear();
@@ -2334,7 +2338,7 @@ public:
 
 	}
 
-	void _update_pits_receivers_carve()
+	void _update_pits_receivers_carve(Neighbourer_t& neighbourer,topo_t& topography, std::vector<n_t>& Sreceivers, std::vector<std::vector<n_t> >& Sdonors, std::vector<dist_t>& Sdistance2receivers)
 	{
 
 		// std::cout <<"ID,rfrom,cfrom,rto,cto,rout,cout" << std::endl;
@@ -2366,7 +2370,7 @@ public:
 			// lab++;
 
 
-			int next_node = this->graph->Sreceivers[node_from];
+			int next_node = Sreceivers[node_from];
 			int temp = node_from;
 			bool keep_on = true;
 			do
@@ -2385,7 +2389,7 @@ public:
 				}
 
 
-				temp = this->graph->Sreceivers[next_node];
+				temp = Sreceivers[next_node];
 
 				// if(viz[temp])
 				// {
@@ -2399,27 +2403,26 @@ public:
 				// if(temp == next_node || this->graph->can_flow_out_there(next_node))
 				// 	keep_on = false;
 
-				this->graph->Sreceivers[next_node] = node_from;
-				this->graph->Sdistance2receivers[next_node] = this->graph->Sdistance2receivers[node_from]; // just to have a length but it should not actually be used
+				Sreceivers[next_node] = node_from;
+				Sdistance2receivers[next_node] = Sdistance2receivers[node_from]; // just to have a length but it should not actually be used
 				node_from = next_node;
 				next_node = temp;
 			} while(keep_on);
 
 
 
-			this->graph->Sreceivers[onode_from] = onode_to;
-			this->graph->Sdistance2receivers[onode_from] = this->graph->dx; // just to have a length but it should not actually be used
+			Sreceivers[onode_from] = onode_to;
+			Sdistance2receivers[onode_from] = neighbourer.dx; // just to have a length but it should not actually be used
 
-			this->graph->rowcol_from_node_id(onode_from,rowf,colf);
-			this->graph->rowcol_from_node_id(onode_to,rowt,colt);
-			// std::cout << "Final Rerouting " << rowf << "/" <<colf << " to " << rowt << "/" << colt << std::endl;
+			neighbourer.rowcol_from_node_id(onode_from,rowf,colf);
+			neighbourer.rowcol_from_node_id(onode_to,rowt,colt);
 		}
 		
 	}
 
 
 
-	void _update_pits_receivers_sompli()
+	void _update_pits_receivers_sompli(Neighbourer_t& neighbourer,topo_t& topography, std::vector<n_t>& Sreceivers, std::vector<std::vector<n_t> >& Sdonors, std::vector<dist_t>& Sdistance2receivers)
 	{
 		// for i in mstree:
 		for(int i=this->stack.size() - 1; i >=0 ; --i)
@@ -2440,18 +2443,18 @@ public:
 			// int outlet_from = this->basin_to_outlets[conn_basins[i][1] ];
 			int outlet_from = this->basin_to_outlets[tlink->from];
 
-			this->graph->Sreceivers[outlet_from] = node_to;
-			this->graph->Sdistance2receivers[outlet_from] = this->graph->dx; // just to have a length but it should not actually be used
+			neighbourer.Sreceivers[outlet_from] = node_to;
+			neighbourer.Sdistance2receivers[outlet_from] = neighbourer.dx; // just to have a length but it should not actually be used
 		}
 
 	 
 	}
 
-	void _update_pits_receivers_fill()
+	void _update_pits_receivers_fill(Neighbourer_t& neighbourer,topo_t& topography, std::vector<n_t>& Sreceivers, std::vector<std::vector<n_t> >& Sdonors, std::vector<dist_t>& Sdistance2receivers)
 	{
 		// for i in mstree:
 		// std::cout <<"yolo";
-		std::vector<bool> isdone(this->graph->nnodes_t,false);
+		std::vector<bool> isdone(neighbourer.nnodes_t,false);
 		for(int i=this->stack.size() - 1; i >=0 ; --i)
 		// for(int i=0;  i<this->stack.size(); ++i)
 		{
@@ -2473,23 +2476,23 @@ public:
 					continue;
 			}
 			// std::cout << "rec nodde_from beef " << this->graph->receivers[node_from];;
-			float otopo = std::fmax((*this->graph->topography)[node_to],(*this->graph->topography)[node_from]);
+			float otopo = std::fmax(topography[node_to],topography[node_from]);
 			std::queue<int> yonode;
 			yonode.push(node_to);
 			while(yonode.size() > 0)
 			{
 				int tnode = yonode.front(); yonode.pop();
-	 			auto neighbours = this->graph->get_neighbours(tnode, false);
+	 			auto neighbours = neighbourer.get_neighbours(tnode, false);
 				for(auto& ineighbor:neighbours)
 				{
-					if(this->graph->can_flow_even_go_there(ineighbor.node) == false || tg_bas != this->basin_labels[ineighbor.node] || isdone[ineighbor.node] == true)
+					if(neighbourer.can_flow_even_go_there(ineighbor.node) == false || tg_bas != this->basin_labels[ineighbor.node] || isdone[ineighbor.node] == true)
 						continue;
 
-					if((*this->graph->topography)[ineighbor.node] <= otopo)
+					if(topography[ineighbor.node] <= otopo)
 					{
 						// std::cout << ineighbor.node << "<--" << tnode << "|||";
-						this->graph->Sreceivers[ineighbor.node] = tnode;
-						this->graph->Sdistance2receivers[ineighbor.node] = ineighbor.distance;
+						Sreceivers[ineighbor.node] = tnode;
+						Sdistance2receivers[ineighbor.node] = ineighbor.distance;
 						yonode.push(ineighbor.node);
 						isdone[ineighbor.node] = true;
 					}
@@ -2508,7 +2511,7 @@ public:
 	// }
 
 
-	void update_receivers(std::string& method)
+	void update_receivers(std::string& method,Neighbourer_t& neighbourer,topo_t& topography, std::vector<n_t>& Sreceivers, std::vector<std::vector<n_t> >& Sdonors, std::vector<dist_t>& Sdistance2receivers)
 	{
 
 		if(method == "simple" || method == "Simple")
@@ -2521,12 +2524,6 @@ public:
 		{
 			this->_update_pits_receivers_fill();
 		}
-
-		this->graph->recompute_SF_donors_from_receivers();
-
-		this->graph->recompute_MF_impose_slope_SS();
-
-
 	}
 
 

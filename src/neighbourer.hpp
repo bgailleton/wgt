@@ -85,9 +85,11 @@ public:
 	// -> lengthener is the dx on each directions
 	std::vector<T > lengthener;
 
+	D8Neighbourer(){};
 
-	D8Neighbourer(int nx, int ny, int nnodes, T dx, T dy, T xmin, T ymin)
+	D8Neighbourer(int nx, int ny, T dx, T dy, T xmin, T ymin)
 	{
+		int nnodes = nx * ny;
 		this->set_dimensions(nx,ny,nnodes,dx,dy,xmin,ymin);
 		this->set_default_boundaries("4edges");
 	}
@@ -302,11 +304,11 @@ public:
 		std::vector<std::vector<int> >& donors, std::vector<T>& Sdistance2receivers, std::vector<std::vector<T> >& distance2receivers, V& topography)
 	{
 		
-		if(topograpphy[from] == topograpphy[to])
+		if(topography[from] == topography[to])
 			return;
 
 		int temp = from;
-		if(topograpphy[from] < topograpphy[to])
+		if(topography[from] < topography[to])
 		{
 			from = to;
 			to = temp;
