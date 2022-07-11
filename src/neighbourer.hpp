@@ -222,6 +222,7 @@ public:
 	void build_mgraph(U& SS, std::vector<std::vector<int> >& Sdonors, std::vector<int>& Sreceivers, std::vector<std::vector<int> >& receivers,
 		std::vector<std::vector<int> >& donors, std::vector<T>& Sdistance2receivers, std::vector<std::vector<T> >& distance2receivers, V& topography )
 	{
+
 		for(int row = 0; row < this->ny; ++row)
 		{
 			for(int col = 0; col < this->nx; ++col)
@@ -235,11 +236,15 @@ public:
 
 				bool check = (col > 1 && row > 1 && col < this->nx - 2 && row < this->ny - 2 ) ? false : true;
 
+				check = true; // debugging statement
+
 
 				if(col > 0 && row > 0 && col < this->nx -1 && row < this->ny - 1 )
 				{
 					this->check_neighbour_v22(SS,this->get_topleft_index(i), i, this->dxy,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					// std::cout << "neighbourer::build_mgraph_yolo::mf1" << row << std::endl;
 					this->check_neighbour_v22_MF(check, this->get_topleft_index(i), i, this->dxy,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					// std::cout << "neighbourer::build_mgraph_yolo::mf2" << row << std::endl;
 					this->check_neighbour_v22(SS,this->get_top_index(i), i, this->dy,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
 					this->check_neighbour_v22_MF(check,this->get_top_index(i), i, this->dy,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
 					this->check_neighbour_v22(SS,this->get_topright_index(i), i, this->dxy,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
@@ -269,6 +274,52 @@ public:
 			}
 
 		}
+
+	}
+
+	template<class V>
+	void rebuild_mgraph_after_solving_depression(std::vector<std::vector<int> >& Sdonors, std::vector<int>& Sreceivers, std::vector<std::vector<int> >& receivers,
+		std::vector<std::vector<int> >& donors, std::vector<T>& Sdistance2receivers, std::vector<std::vector<T> >& distance2receivers, V& topography )
+	{
+
+		for(int row = 0; row < this->ny; ++row)
+		{
+			for(int col = 0; col < this->nx; ++col)
+			{
+				int i = row * this->nx + col;
+				// cannot be a neighbour anyway, abort
+				if(this->can_flow_even_go_there(i) == false)
+				{
+					continue;
+				}
+
+				bool check = (col > 1 && row > 1 && col < this->nx - 2 && row < this->ny - 2 ) ? false : true;
+
+				check = true; // debugging statement
+
+
+				if(col > 0 && row > 0 && col < this->nx -1 && row < this->ny - 1 )
+				{
+					this->check_neighbour_v22_MF(check, this->get_topleft_index(i), i, this->dxy,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					this->check_neighbour_v22_MF(check,this->get_top_index(i), i, this->dy,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					this->check_neighbour_v22_MF(check,this->get_topright_index(i), i, this->dxy,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					this->check_neighbour_v22_MF(check,this->get_right_index(i), i, this->dx,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+				}
+				else
+				{
+					this->check_neighbour_v22_MF(check,this->get_top_index(i), i, this->dy,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					this->check_neighbour_v22_MF(check,this->get_left_index(i), i, this->dx,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					this->check_neighbour_v22_MF(check,this->get_right_index(i), i, this->dx,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					this->check_neighbour_v22_MF(check,this->get_bottom_index(i), i, this->dy,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					this->check_neighbour_v22_MF(check,this->get_topright_index(i), i, this->dxy,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					this->check_neighbour_v22_MF(check,this->get_topleft_index(i), i, this->dxy,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					this->check_neighbour_v22_MF(check,this->get_bottomright_index(i), i, this->dxy,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					this->check_neighbour_v22_MF(check,this->get_bottomleft_index(i), i, this->dxy,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+				}
+			}
+
+		}
+
 	}
 
 	template<class U, class V>
@@ -306,12 +357,19 @@ public:
 	}
 
 	template< class V>
-	void check_neighbour_v22_MF(bool check, int from, int to, T dist, std::vector<std::vector<int> >& Sdonors, std::vector<int>& Sreceivers, std::vector<std::vector<int> >& receivers,
+	void check_neighbour_v22_MF(bool check, int to, int from, T dist, std::vector<std::vector<int> >& Sdonors, std::vector<int>& Sreceivers, std::vector<std::vector<int> >& receivers,
 		std::vector<std::vector<int> >& donors, std::vector<T>& Sdistance2receivers, std::vector<std::vector<T> >& distance2receivers, V& topography)
 	{
+
+		if (to < 0 || to >= this->nnodes)
+			return;
+
+		if(this->can_flow_even_go_there(to) == false)
+			return;
 		
 		if(topography[from] == topography[to])
 			return;
+
 
 		int temp = from;
 		if(topography[from] < topography[to])
@@ -328,9 +386,13 @@ public:
 					return;
 			}
 		}
+		// std::cout << "yo::" << from << "||" << to << "||" << receivers.size() << std::endl;
+		// std::cout << "yo::" << from << "||" << distance2receivers.size() << std::endl;
+		// std::cout << "yo::" << from << "||" << donors.size() << std::endl;
 		receivers[from].emplace_back(to);
 		distance2receivers[from].emplace_back(dist);
 		donors[to].emplace_back(from);
+		// std::cout << "lo" << std::endl;
 	}
 
 
@@ -848,6 +910,15 @@ public:
 		{
 			return true;
 		}
+	}
+
+	inline bool is_active(int i)
+	{
+		if(this->can_flow_out_there(i))
+			return false;
+		if(this->can_flow_even_go_there(i))
+			return true;
+		return false;
 	}
 
 	// Returns true if the node is on the dem edge

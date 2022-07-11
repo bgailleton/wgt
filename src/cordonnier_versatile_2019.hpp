@@ -2478,9 +2478,6 @@ public:
 
 			Sreceivers[onode_from] = onode_to;
 			Sdistance2receivers[onode_from] = neighbourer.dx; // just to have a length but it should not actually be used
-
-			neighbourer.rowcol_from_node_id(onode_from,rowf,colf);
-			neighbourer.rowcol_from_node_id(onode_to,rowt,colt);
 		}
 		
 	}
