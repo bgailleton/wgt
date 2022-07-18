@@ -49,7 +49,7 @@
 
 // the main calss managing the graph
 template<class T>
-class MGraph
+class StaticMGraph
 {
 public:
 
@@ -69,6 +69,7 @@ public:
 	// #-> number of nodes (integer and unsized int for loops or list innit).
 	int nnodes = 0;
 	size_t nnodes_t = 0;
+	int n_neighbours = 8;
 
 	// Steepest descent receiver
 	std::vector<int> Sreceivers;
@@ -77,13 +78,9 @@ public:
 	// Steepest descent dx
 	std::vector<T> Sdistance2receivers;
 
-
-	// Multiple flow reveivers
-	std::vector<std::vector<int> > receivers;
 	// Multiple flow donors
-	std::vector<std::vector<int> > donors;
-	// Multiple flow dx
-	std::vector<std::vector<T> > distance2receivers;
+	std::vector<std::vector<bool> > is_rec;
+
 
 
 		// #->stack: topological order from downstream to upstream direction for general (sorted)
@@ -105,52 +102,8 @@ public:
 
 	// Constructors
 	// #->Empty constructor
-	MGraph(){;};
-	MGraph(int nnodes){this->nnodes = nnodes; this->nnodes_t = nnodes;};
-
-	void yolomp(int n_proc)
-	{
-		int N = 10000000;
-
-		std::vector<float> yabul(N);
-
-		auto t1 = high_resolution_clock::now();
-		
-
-
-
-		#pragma omp parallel for default(shared) num_threads(2)
-		for(int i = 0; i<N; ++i)
-		{
-			for(int j =0; j<100; ++j)
-				yabul[i]+= j * i;
-		}
-
-		auto t2 = high_resolution_clock::now();
-		duration<double, std::milli> ms_double = t2 - t1;
-		double time_para = ms_double.count();
-
-
-		t1 = high_resolution_clock::now();
-		for(int i = 0; i<N; ++i)
-		{
-			for(int j =0; j<100; ++j)
-				yabul[i]+= j * i;
-		}
-
-		t2 = high_resolution_clock::now();
-		ms_double = t2 - t1;
-		double time_no_para = ms_double.count();
-		std:: cout << "OpenMP was " << time_para << " and vanilla was " << time_no_para << std::endl;
-	}
-
-	void yonolomp(int n_proc)
-	{
-		std::vector<float> yabul(this->nnodes * 10);
-		#pragma omp parallel for num_threads(n_proc)
-		for(int i = 0; i<this->nnodes; ++i)
-			yabul[i]+= -1e-4 + static_cast <float> (rand()) /( static_cast <float> (RAND_MAX/(2e-4)));
-	}
+	StaticMGraph(){;};
+	StaticMGraph(int nnodes, int n_neighbours){this->nnodes = nnodes; this->nnodes_t = nnodes;};
 
 
 	// ------------------------------------------------
@@ -248,90 +201,6 @@ public:
 		return faketopo;
 	}
 
-
-
-	template<class Neighbourer_t, class topo_t>
-	topo_t compute_graph_OMP(std::string depression_solver, Neighbourer_t& neighbourer, topo_t& topography, int n_proc)
-	{
-		// std::cout << "ASDFdsfa->1" << std::endl;
-		auto t1 = high_resolution_clock::now();
-		this->compute_graph_both_v2_OMP(neighbourer,topography, n_proc);
-		auto t2 = high_resolution_clock::now();
-		duration<double, std::milli> ms_double = t2 - t1;
-		double time_compute_graph_both_v2 = ms_double.count();
-		// std::cout << "ASDFdsfa->2" << std::endl;
-		
-		t1 = high_resolution_clock::now();
-		this->compute_TO_SF_stack_version();
-		t2 = high_resolution_clock::now();
-		ms_double = t2 - t1;
-		double time_compute_TO_SF_stack_version1 = ms_double.count();
-
-		// std::cout << "ASDFdsfa->3" << std::endl;
-		topo_t faketopo(topography);
-		if(depression_solver != "none")
-		{
-			t1 = high_resolution_clock::now();
-
-			this->solve_depressions(depression_solver, neighbourer, topography);
-			t2 = high_resolution_clock::now();
-			ms_double = t2 - t1;
-			double time_solve_depressions = ms_double.count();
-
-			t1 = high_resolution_clock::now();
-			this->compute_TO_SF_stack_version();
-			t2 = high_resolution_clock::now();
-			ms_double = t2 - t1;
-			double time_compute_TO_SF_stack_version2 = ms_double.count();
-
-
-
-			t1 = high_resolution_clock::now();
-			if(depression_solver == "fill")
-				this->fill_topo(1e-3,neighbourer,faketopo);
-			else
-				this->carve_topo(1e-3,neighbourer,faketopo);
-			// this->carve_topo(1e-3,neighbourer,faketopo);
-			t2 = high_resolution_clock::now();
-			ms_double = t2 - t1;
-			double time_carve_topo = ms_double.count();
-
-
-
-			t1 = high_resolution_clock::now();
-			// this->receivers.clear();
-			// this->donors.clear();
-			// this->distance2receivers.clear();
-			// this->receivers = std::vector<std::vector<int> >(this->nnodes);
-			// this->donors = std::vector<std::vector<int> >(this->nnodes);
-			// this->distance2receivers = std::vector<std::vector<T> >(this->nnodes);
-			// neighbourer.rebuild_mgraph_after_solving_depression(Sdonors, Sreceivers, receivers,donors, Sdistance2receivers, distance2receivers, faketopo);
-			this->update_receivers_v2(faketopo);
-			t2 = high_resolution_clock::now();
-			ms_double = t2 - t1;
-			double time_rebuild_mgraph = ms_double.count();
-
-
-			t1 = high_resolution_clock::now();
-			// this->compute_MF_topological_order();
-			this->compute_MF_topological_order_insort(faketopo);
-			t2 = high_resolution_clock::now();
-			ms_double = t2 - t1;
-			double time_compute_MF_topological_order = ms_double.count();
-
-		// std::cout << "ASDFdsfa->4" << std::endl;
-		// std::cout << "ASDFdsfa->5" << std::endl;
-
-			// std::cout << "time_compute_graph_both_v2::" << time_compute_graph_both_v2 << std::endl;
-			// std::cout << "time_compute_TO_SF_stack_version1::" << time_compute_TO_SF_stack_version1 << std::endl;
-			// std::cout << "time_solve_depressions::" << time_solve_depressions << std::endl;
-			// std::cout << "time_compute_TO_SF_stack_version2::" << time_compute_TO_SF_stack_version2 << std::endl;
-			// std::cout << "time_carve_topo::" << time_carve_topo << std::endl;
-			// std::cout << "time_rebuild_mgraph::" << time_rebuild_mgraph << std::endl;
-			// std::cout << "time_compute_MF_topological_order::" << time_compute_MF_topological_order << std::endl;
-		}
-		return faketopo;
-	}
 
 
 	template<class Neighbourer_t, class topo_t>
@@ -448,12 +317,7 @@ public:
 		this->Sdistance2receivers = std::vector<T>(this->nnodes_t, -1);
 		std::vector<T> SS(this->nnodes_t, 0.);
 
-		this->receivers.clear();
-		this->donors.clear();
-		this->distance2receivers.clear();
-		this->receivers = std::vector<std::vector<int> >(this->nnodes);
-		this->donors = std::vector<std::vector<int> >(this->nnodes);
-		this->distance2receivers = std::vector<std::vector<T> >(this->nnodes);
+		
 
 
 		for (int i=0; i < this->nnodes; ++i)
@@ -653,13 +517,13 @@ public:
 	void solve_depressions(std::string& depression_solver , Neighbourer_t& neighbourer, topo_t& topography)
 	{
 		
-		LMRerouter depsolver(neighbourer, topography, this->Sreceivers,  this->Sdistance2receivers, this->Sstack);
+		LMRerouter depsolver(neighbourer, topography, this->Sreceivers,  this->Sdonors,  this->Sdistance2receivers, this->Sstack);
 
 
 		if(depsolver.npits > 0)
 		{
 
-			depsolver.update_receivers(depression_solver,neighbourer, topography, this->Sreceivers, this->Sdistance2receivers, this->Sstack);
+			depsolver.update_receivers(depression_solver,neighbourer, topography, this->Sreceivers,  this->Sdonors,  this->Sdistance2receivers, this->Sstack);
 			
 			this->recompute_SF_donors_from_receivers();
 		}

@@ -535,6 +535,39 @@ public:
 		}
 	}
 
+	template<class U, class V>
+	void check_neighbour_vSMG(U& SS, int ne, int i, T dist,  std::vector<int>& Sreceivers, std::vector<T>& Sdistance2receivers, V& topography)
+	{
+		if (ne < 0)
+			return;
+
+		if(this->can_flow_even_go_there(ne) == false)
+			return;
+		
+		T this_elev = topography[i];
+
+		if(topography[ne] < this_elev && this->can_flow_out_there(i) == false)
+		{
+			double this_slope = (this_elev - topography[ne])/dist;
+			if(this_slope > SS[i])
+			{
+				SS[i] = this_slope;
+				Sreceivers[i] = ne;
+				Sdistance2receivers[i] = dist;
+			}
+		}
+		else if (topography[ne] > this_elev && this->can_flow_out_there(ne) == false)
+		{
+			double this_slope = (topography[ne] - this_elev)/dist;
+			if(this_slope > SS[ne])
+			{
+				SS[ne] = this_slope;
+				Sreceivers[ne] = i;
+				Sdistance2receivers[ne] = dist;
+			}
+		}
+	}
+
 	template< class V>
 	void check_neighbour_v22_MF(bool check, int to, int from, T dist, std::vector<std::vector<int> >& Sdonors, std::vector<int>& Sreceivers, std::vector<std::vector<int> >& receivers,
 		std::vector<std::vector<int> >& donors, std::vector<T>& Sdistance2receivers, std::vector<std::vector<T> >& distance2receivers, V& topography)
@@ -574,6 +607,127 @@ public:
 		// std::cout << "lo" << std::endl;
 	}
 
+
+	template<class topo_t>
+	void build_smgraph_only_MF(topo_t& topography, std::vector<bool>& isrec)
+	{
+		for(auto& v:topography)
+			v+= -1e-4 + static_cast <float> (rand()) /( static_cast <float> (RAND_MAX/(2e-4)));
+
+		for(int row = 0; row < this->ny; ++row)
+		{
+			for(int col = 0; col < this->nx; ++col)
+			{
+				int i = row * this->nx + col;
+				// cannot be a neighbour anyway, abort
+				if(this->can_flow_even_go_there(i) == false)
+				{
+					continue;
+				}
+
+				float this_topo = topography[i];
+
+				int n = this->get_id_right_SMG(i);
+				if(n!= this->not_a_node)
+				{
+					if(topography[n] < this_topo)
+						isrec[n] = true;
+					else
+						isrec[n] = false;
+				}
+				n = this->get_id_bottomright_SMG(i);
+				if(n!= this->not_a_node)
+				{
+					if(topography[n] < this_topo)
+						isrec[n] = true;
+					else
+						isrec[n] = false;
+				}
+				n = this->get_id_bottom_SMG(i);
+				if(n!= this->not_a_node)
+				{
+					if(topography[n] < this_topo)
+						isrec[n] = true;
+					else
+						isrec[n] = false;
+				}
+				n = this->get_id_bottomleft_SMG(i);
+				if(n!= this->not_a_node)
+				{
+					if(topography[n] < this_topo)
+						isrec[n] = true;
+					else
+						isrec[n] = false;
+				}
+
+			}
+		}
+
+		int Nrecs = 0;
+		for(auto v:isrec)
+		{
+			if(v)
+				Nrecs++;
+		}
+		std::cout << "GOT N recs = " << Nrecs << std::endl;
+
+	}
+
+	template<class topo_t>
+	void build_smgraph_SS_only_SS(topo_t& topography, std::vector<int>& Sreceivers, 
+		std::vector<float>& Sdistance2receivers, std::vector<float>& SS)
+	{
+		for(auto& v:topography)
+			v+= -1e-4 + static_cast <float> (rand()) /( static_cast <float> (RAND_MAX/(2e-4)));
+
+		for(int row = 0; row < this->ny; ++row)
+		{
+			for(int col = 0; col < this->nx; ++col)
+			{
+				int i = row * this->nx + col;
+				// cannot be a neighbour anyway, abort
+				if(this->can_flow_even_go_there(i) == false)
+				{
+					continue;
+				}
+
+				if(col > 0 && row > 0 && col < this->nx -1 && row < this->ny - 1 )
+				{
+					this->check_neighbour_vSMG(SS,this->get_topleft_index(i), i, this->dxy,Sreceivers,Sdistance2receivers,topography);
+					this->check_neighbour_vSMG(SS,this->get_top_index(i), i, this->dy,Sreceivers,Sdistance2receivers,topography);
+					this->check_neighbour_vSMG(SS,this->get_topright_index(i), i, this->dxy,Sreceivers,Sdistance2receivers,topography);
+					this->check_neighbour_vSMG(SS,this->get_right_index(i), i, this->dx,Sreceivers,Sdistance2receivers,topography);
+				}
+				else
+				{
+					this->check_neighbour_vSMG(SS,this->get_top_index(i), i, this->dy,Sreceivers,Sdistance2receivers,topography);
+					this->check_neighbour_vSMG(SS,this->get_left_index(i), i, this->dx,Sreceivers,Sdistance2receivers,topography);
+					this->check_neighbour_vSMG(SS,this->get_right_index(i), i, this->dx,Sreceivers,Sdistance2receivers,topography);
+					this->check_neighbour_vSMG(SS,this->get_bottom_index(i), i, this->dy,Sreceivers,Sdistance2receivers,topography);
+					this->check_neighbour_vSMG(SS,this->get_topright_index(i), i, this->dxy,Sreceivers,Sdistance2receivers,topography);
+					this->check_neighbour_vSMG(SS,this->get_topleft_index(i), i, this->dxy,Sreceivers,Sdistance2receivers,topography);
+					this->check_neighbour_vSMG(SS,this->get_bottomright_index(i), i, this->dxy,Sreceivers,Sdistance2receivers,topography);
+					this->check_neighbour_vSMG(SS,this->get_bottomleft_index(i), i, this->dxy,Sreceivers,Sdistance2receivers,topography);
+				}
+			}
+
+		}
+
+	}
+
+	int get_id_right_SMG(int i){return i*4;}
+	int get_id_bottomright_SMG(int i){return i*4 + 1;}
+	int get_id_bottom_SMG(int i){return i*4 + 2;}
+	int get_id_bottomleft_SMG(int i){return i*4 + 3;}
+	int get_id_left_SMG(int i){int yolo = this->get_left_index(i); if (yolo>=0){ return this->get_id_right_SMG(yolo);} else{ return this->not_a_node;}}
+	int get_id_topleft_SMG(int i){int yolo = this->get_topleft_index(i); if (yolo>=0){ return this->get_id_bottomright_SMG(yolo);} else{ return this->not_a_node;}}
+	int get_id_top_SMG(int i){int yolo = this->get_top_index(i); if (yolo>=0){ return this->get_id_bottom_SMG(yolo);} else{ return this->not_a_node;}}
+	int get_id_topright_SMG(int i){int yolo = this->get_topright_index(i); if (yolo>=0){ return this->get_id_bottomleft_SMG(yolo);} else{ return this->not_a_node;}}
+
+	std::vector<int> get_neighourer_indices_SMG(int i)
+	{
+		return std::vector<int>{this->get_id_right_SMG(i),this->get_id_bottomright_SMG(i),this->get_id_bottom_SMG(i),this->get_id_bottomleft_SMG(i),this->get_id_left_SMG(i),this->get_id_topleft_SMG(i),this->get_id_top_SMG(i),this->get_id_topright_SMG};
+	}
 
 		// ------------------------------------------------
 

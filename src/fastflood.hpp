@@ -64,7 +64,7 @@ topo_t run_multi_fastflood_static(MGraph<T>& graph, Neighbourer_t& neighbourer, 
 				for(int j = 0;j < graph.receivers[node].size(); ++j)
 				{
 					int rec = graph.receivers[node][j];
-					slopes[j] = (topography[node] + hw[node] - topography[rec] - hw[rec])/graph.distance2receivers[node][j];
+					slopes[j] = std::sqrt((topography[node] + hw[node] - topography[rec] - hw[rec])/graph.distance2receivers[node][j]);
 					if(slopes[j] <= 0)
 						slopes[j] = 1e-5;
 					sumslopes += slopes[j];

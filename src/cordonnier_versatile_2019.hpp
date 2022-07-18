@@ -2062,17 +2062,17 @@ public:
 
 	LMRerouter(){;};
 
-	LMRerouter(Neighbourer_t& neighbourer,topo_t& topography, std::vector<n_t>& Sreceivers, std::vector<std::vector<n_t> >& Sdonors, std::vector<dist_t>& Sdistance2receivers, std::vector<size_t>& stack)
+	LMRerouter(Neighbourer_t& neighbourer,topo_t& topography, std::vector<n_t>& Sreceivers,  std::vector<dist_t>& Sdistance2receivers, std::vector<size_t>& stack)
 	{
 		auto t1 = high_resolution_clock::now();
-		this->compute_basins_and_pits(neighbourer,topography,Sreceivers,Sdonors,Sdistance2receivers, stack);
+		this->compute_basins_and_pits(neighbourer,topography,Sreceivers,Sdistance2receivers, stack);
 		auto t2 = high_resolution_clock::now();
 		duration<double, std::milli> ms_double = t2 - t1;
 		// std::cout << "Computing basins and pits -> " << ms_double.count() << " milliseconds" << std::endl;;
 		if(this->npits > 0)
 		{
 			t1 = high_resolution_clock::now();
-			this->preprocess_flowrouting(neighbourer,topography,Sreceivers,Sdonors,Sdistance2receivers);
+			this->preprocess_flowrouting(neighbourer,topography,Sreceivers,Sdistance2receivers);
 			t2 = high_resolution_clock::now();
 			ms_double = t2 - t1;
 			// std::cout << "Preprocess_flowrouting -> " << ms_double.count() << " milliseconds" << std::endl;;
@@ -2080,28 +2080,28 @@ public:
 		}
 	}
 
-	void preprocess_flowrouting(Neighbourer_t& neighbourer,topo_t& topography, std::vector<n_t>& Sreceivers, std::vector<std::vector<n_t> >& Sdonors, std::vector<dist_t>& Sdistance2receivers)
+	void preprocess_flowrouting(Neighbourer_t& neighbourer,topo_t& topography, std::vector<n_t>& Sreceivers,  std::vector<dist_t>& Sdistance2receivers)
 	{
 		auto t1 = high_resolution_clock::now();
 
-		this->_compute_links(neighbourer,topography,Sreceivers,Sdonors,Sdistance2receivers);
+		this->_compute_links(neighbourer,topography,Sreceivers,Sdistance2receivers);
 		auto t2 = high_resolution_clock::now();
 		duration<double, std::milli> ms_double = t2 - t1;
 		// std::cout << "_compute_links --> " << ms_double.count() << " milliseconds" << std::endl;;
 		t1 = high_resolution_clock::now();
-		this->_compute_mst_kruskal(neighbourer,topography,Sreceivers,Sdonors,Sdistance2receivers);
+		this->_compute_mst_kruskal(neighbourer,topography,Sreceivers,Sdistance2receivers);
 		t2 = high_resolution_clock::now();
 		ms_double = t2 - t1;
 		// std::cout << "_compute_mst_kruskal --> " << ms_double.count() << " milliseconds" << std::endl;;
 		t1 = high_resolution_clock::now();
-		this->_orient_basin_tree(neighbourer,topography,Sreceivers,Sdonors,Sdistance2receivers);
+		this->_orient_basin_tree(neighbourer,topography,Sreceivers,Sdistance2receivers);
 		t2 = high_resolution_clock::now();
 		ms_double = t2 - t1;
 		// std::cout << "_orient_basin_tree --> " << ms_double.count() << " milliseconds" << std::endl;;
 	}
 
 	// Uses the stack structure to build a quick basin array
-	void compute_basins_and_pits(Neighbourer_t& neighbourer,topo_t& topography, std::vector<n_t>& Sreceivers, std::vector<std::vector<n_t> >& Sdonors, std::vector<dist_t>& Sdistance2receivers, std::vector<size_t>& stack)
+	void compute_basins_and_pits(Neighbourer_t& neighbourer,topo_t& topography, std::vector<n_t>& Sreceivers,  std::vector<dist_t>& Sdistance2receivers, std::vector<size_t>& stack)
 	{
 		this->basin_labels = std::vector<n_t>(neighbourer.nnodes_t, -1);
 		this->basin_to_outlets.reserve(200);
@@ -2141,7 +2141,7 @@ public:
 		this->nbasins = lab + 1;
 	}
 
-	void _compute_links(Neighbourer_t& neighbourer,topo_t& topography, std::vector<n_t>& Sreceivers, std::vector<std::vector<n_t> >& Sdonors, std::vector<dist_t>& Sdistance2receivers)
+	void _compute_links(Neighbourer_t& neighbourer,topo_t& topography, std::vector<n_t>& Sreceivers,  std::vector<dist_t>& Sdistance2receivers)
 	{
 
 		// Initialising a matrix of links for each basins in order to stor the minimum elevation links between each pair of basins
@@ -2237,7 +2237,7 @@ public:
 
 	}
 
-	void _compute_mst_kruskal(Neighbourer_t& neighbourer,topo_t& topography, std::vector<n_t>& Sreceivers, std::vector<std::vector<n_t> >& Sdonors, std::vector<dist_t>& Sdistance2receivers)
+	void _compute_mst_kruskal(Neighbourer_t& neighbourer,topo_t& topography, std::vector<n_t>& Sreceivers,  std::vector<dist_t>& Sdistance2receivers)
 	{
 		// this->mstree = std::vector<n_t>(this->nbasins - 1);
 		this->bas2links = std::vector< std::vector< Link<n_t, dist_t>* > >( this->nbasins, std::vector< Link<n_t, dist_t>* >() );
@@ -2283,7 +2283,7 @@ public:
 
 	}
 
-	void _orient_basin_tree(Neighbourer_t& neighbourer,topo_t& topography, std::vector<n_t>& Sreceivers, std::vector<std::vector<n_t> >& Sdonors, std::vector<dist_t>& Sdistance2receivers)
+	void _orient_basin_tree(Neighbourer_t& neighbourer,topo_t& topography, std::vector<n_t>& Sreceivers,  std::vector<dist_t>& Sdistance2receivers)
 	{
 
 		this->receivers = std::vector<n_t>(this->nbasins, -1);
@@ -2354,7 +2354,7 @@ public:
 
 	}
 
-	void compute_TO_SF_stack_version(Neighbourer_t& neighbourer,topo_t& topography, std::vector<n_t>& Sreceivers, std::vector<std::vector<n_t> >& Sdonors, std::vector<dist_t>& Sdistance2receivers)
+	void compute_TO_SF_stack_version(Neighbourer_t& neighbourer,topo_t& topography, std::vector<n_t>& Sreceivers,  std::vector<dist_t>& Sdistance2receivers)
 	{
 		// Initialising the stack
 		this->stack.clear();
@@ -2403,7 +2403,7 @@ public:
 	}
 
 	void _update_pits_receivers_carve(Neighbourer_t& neighbourer,topo_t& topography, std::vector<n_t>& Sreceivers, 
-		std::vector<std::vector<n_t> >& Sdonors, std::vector<dist_t>& Sdistance2receivers, std::vector<size_t>& stack)
+		 std::vector<dist_t>& Sdistance2receivers, std::vector<size_t>& stack)
 	{
 
 		// std::cout <<"ID,rfrom,cfrom,rto,cto,rout,cout" << std::endl;
@@ -2471,7 +2471,7 @@ public:
 
 
 	void _update_pits_receivers_sompli(Neighbourer_t& neighbourer,topo_t& topography, std::vector<n_t>& Sreceivers, 
-		std::vector<std::vector<n_t> >& Sdonors, std::vector<dist_t>& Sdistance2receivers, std::vector<size_t>& stack)
+		 std::vector<dist_t>& Sdistance2receivers, std::vector<size_t>& stack)
 	{
 		// for i in mstree:
 		for(int i=this->stack.size() - 1; i >=0 ; --i)
@@ -2500,7 +2500,7 @@ public:
 	}
 
 	void _update_pits_receivers_fill(Neighbourer_t& neighbourer,topo_t& topography, std::vector<n_t>& Sreceivers, 
-		std::vector<std::vector<n_t> >& Sdonors, std::vector<dist_t>& Sdistance2receivers, std::vector<size_t>& stack)
+		 std::vector<dist_t>& Sdistance2receivers, std::vector<size_t>& stack)
 	{
 		// for i in mstree:
 		// std::cout <<"yolo";
@@ -2561,18 +2561,18 @@ public:
 	// }
 
 
-	void update_receivers(std::string& method,Neighbourer_t& neighbourer,topo_t& topography, std::vector<n_t>& Sreceivers, std::vector<std::vector<n_t> >& Sdonors, std::vector<dist_t>& Sdistance2receivers, std::vector<size_t>& stack)
+	void update_receivers(std::string& method,Neighbourer_t& neighbourer,topo_t& topography, std::vector<n_t>& Sreceivers,  std::vector<dist_t>& Sdistance2receivers, std::vector<size_t>& stack)
 	{
 
 		if(method == "simple" || method == "Simple")
-			this->_update_pits_receivers_sompli(neighbourer,topography,Sreceivers,Sdonors,Sdistance2receivers,stack);
+			this->_update_pits_receivers_sompli(neighbourer,topography,Sreceivers,Sdistance2receivers,stack);
 		else if (method == "carve")
 		{
-			this->_update_pits_receivers_carve(neighbourer,topography,Sreceivers,Sdonors,Sdistance2receivers,stack);
+			this->_update_pits_receivers_carve(neighbourer,topography,Sreceivers,Sdistance2receivers,stack);
 		}
 		else if (method == "fill")
 		{
-			this->_update_pits_receivers_fill(neighbourer,topography,Sreceivers,Sdonors,Sdistance2receivers,stack);
+			this->_update_pits_receivers_fill(neighbourer,topography,Sreceivers,Sdistance2receivers,stack);
 		}
 	}
 
