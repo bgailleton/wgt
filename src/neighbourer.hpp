@@ -19,6 +19,8 @@
 #include <thread>
 #include<stdlib.h>
 #include<ctime>
+#include "omp.h"
+
 
 // local includes 
 // -> General routines and data structures
@@ -223,6 +225,17 @@ public:
 		std::vector<std::vector<int> >& donors, std::vector<T>& Sdistance2receivers, std::vector<std::vector<T> >& distance2receivers, V& topography )
 	{
 
+		for(int i=0; i<this->nnodes;++i)
+		{
+			Sdonors[i].reserve(8);
+			donors[i].reserve(8);
+			receivers[i].reserve(8);
+			distance2receivers[i].reserve(8);
+		}		
+
+		for(auto& v:topography)
+			v+= -1e-4 + static_cast <float> (rand()) /( static_cast <float> (RAND_MAX/(2e-4)));
+
 		for(int row = 0; row < this->ny; ++row)
 		{
 			for(int col = 0; col < this->nx; ++col)
@@ -236,7 +249,7 @@ public:
 
 				bool check = (col > 1 && row > 1 && col < this->nx - 2 && row < this->ny - 2 ) ? false : true;
 
-				check = true; // debugging statement
+				// check = true; // debugging statement
 
 
 				if(col > 0 && row > 0 && col < this->nx -1 && row < this->ny - 1 )
@@ -275,7 +288,173 @@ public:
 
 		}
 
+		int Ndef = 0;
+		for(int row = 2; row < this->ny - 2; ++row)
+		{
+			for(int col = 2; col < this->nx - 2; ++col)
+			{
+				int i = row * this->nx + col;
+				if(receivers[i].size() + donors[i].size() < 8)
+					Ndef ++;
+			}
+		}
+
+		if(Ndef > 0)
+			std::cout << "WARNING::NDEF::" << Ndef << std::endl;
+
 	}
+
+
+	template<class U, class V>
+	void build_mgraph_OMP(U& SS, std::vector<std::vector<int> >& Sdonors, std::vector<int>& Sreceivers, std::vector<std::vector<int> >& receivers,
+		std::vector<std::vector<int> >& donors, std::vector<T>& Sdistance2receivers, std::vector<std::vector<T> >& distance2receivers, V& topography, int n_proc )
+	{
+
+		for(int i=0; i<this->nnodes;++i)
+		{
+			Sdonors[i].reserve(8);
+			donors[i].reserve(8);
+			receivers[i].reserve(8);
+			distance2receivers[i].reserve(8);
+		}		
+
+		#pragma omp parallel for num_threads(n_proc) 
+		for(int i = 0; i<this->nnodes; ++i)
+			topography[i]+= -1e-4 + static_cast <float> (rand()) /( static_cast <float> (RAND_MAX/(2e-4)));
+
+
+		#pragma omp parallel for num_threads(n_proc) 
+		for(int row = 0; row < this->ny; ++row)
+		{
+			// std::cout << omp_get_thread_num() << std::endl;
+			if(row%2 == 1)
+				continue;
+
+			for(int col = 0; col < this->nx; ++col)
+			{
+				int i = row * this->nx + col;
+				// cannot be a neighbour anyway, abort
+				if(this->can_flow_even_go_there(i) == false)
+				{
+					continue;
+				}
+
+				bool check = (col > 1 && row > 1 && col < this->nx - 2 && row < this->ny - 2 ) ? false : true;
+
+				// check = true; // debugging statement
+
+
+				if(col > 0 && row > 0 && col < this->nx -1 && row < this->ny - 1 )
+				{
+					this->check_neighbour_v22(SS,this->get_topleft_index(i), i, this->dxy,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					// std::cout << "neighbourer::build_mgraph_yolo::mf1" << row << std::endl;
+					this->check_neighbour_v22_MF(check, this->get_topleft_index(i), i, this->dxy,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					// std::cout << "neighbourer::build_mgraph_yolo::mf2" << row << std::endl;
+					this->check_neighbour_v22(SS,this->get_top_index(i), i, this->dy,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					this->check_neighbour_v22_MF(check,this->get_top_index(i), i, this->dy,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					this->check_neighbour_v22(SS,this->get_topright_index(i), i, this->dxy,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					this->check_neighbour_v22_MF(check,this->get_topright_index(i), i, this->dxy,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					this->check_neighbour_v22(SS,this->get_right_index(i), i, this->dx,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					this->check_neighbour_v22_MF(check,this->get_right_index(i), i, this->dx,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+				}
+				else
+				{
+					this->check_neighbour_v22(SS,this->get_top_index(i), i, this->dy,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					this->check_neighbour_v22_MF(check,this->get_top_index(i), i, this->dy,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					this->check_neighbour_v22(SS,this->get_left_index(i), i, this->dx,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					this->check_neighbour_v22_MF(check,this->get_left_index(i), i, this->dx,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					this->check_neighbour_v22(SS,this->get_right_index(i), i, this->dx,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					this->check_neighbour_v22_MF(check,this->get_right_index(i), i, this->dx,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					this->check_neighbour_v22(SS,this->get_bottom_index(i), i, this->dy,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					this->check_neighbour_v22_MF(check,this->get_bottom_index(i), i, this->dy,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					this->check_neighbour_v22(SS,this->get_topright_index(i), i, this->dxy,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					this->check_neighbour_v22_MF(check,this->get_topright_index(i), i, this->dxy,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					this->check_neighbour_v22(SS,this->get_topleft_index(i), i, this->dxy,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					this->check_neighbour_v22_MF(check,this->get_topleft_index(i), i, this->dxy,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					this->check_neighbour_v22(SS,this->get_bottomright_index(i), i, this->dxy,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					this->check_neighbour_v22_MF(check,this->get_bottomright_index(i), i, this->dxy,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					this->check_neighbour_v22(SS,this->get_bottomleft_index(i), i, this->dxy,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					this->check_neighbour_v22_MF(check,this->get_bottomleft_index(i), i, this->dxy,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+				}
+			}
+
+		}
+
+		#pragma omp parallel for num_threads(n_proc)  
+		for(int row = 0; row < this->ny; ++row)
+		{
+			if(row%2 ==0)
+				continue;
+
+			for(int col = 0; col < this->nx; ++col)
+			{
+				int i = row * this->nx + col;
+				// cannot be a neighbour anyway, abort
+				if(this->can_flow_even_go_there(i) == false)
+				{
+					continue;
+				}
+
+				bool check = (col > 1 && row > 1 && col < this->nx - 2 && row < this->ny - 2 ) ? false : true;
+
+				// check = true; // debugging statement
+
+
+				if(col > 0 && row > 0 && col < this->nx -1 && row < this->ny - 1 )
+				{
+					this->check_neighbour_v22(SS,this->get_topleft_index(i), i, this->dxy,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					// std::cout << "neighbourer::build_mgraph_yolo::mf1" << row << std::endl;
+					this->check_neighbour_v22_MF(check, this->get_topleft_index(i), i, this->dxy,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					// std::cout << "neighbourer::build_mgraph_yolo::mf2" << row << std::endl;
+					this->check_neighbour_v22(SS,this->get_top_index(i), i, this->dy,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					this->check_neighbour_v22_MF(check,this->get_top_index(i), i, this->dy,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					this->check_neighbour_v22(SS,this->get_topright_index(i), i, this->dxy,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					this->check_neighbour_v22_MF(check,this->get_topright_index(i), i, this->dxy,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					this->check_neighbour_v22(SS,this->get_right_index(i), i, this->dx,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					this->check_neighbour_v22_MF(check,this->get_right_index(i), i, this->dx,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+				}
+				else
+				{
+					this->check_neighbour_v22(SS,this->get_top_index(i), i, this->dy,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					this->check_neighbour_v22_MF(check,this->get_top_index(i), i, this->dy,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					this->check_neighbour_v22(SS,this->get_left_index(i), i, this->dx,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					this->check_neighbour_v22_MF(check,this->get_left_index(i), i, this->dx,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					this->check_neighbour_v22(SS,this->get_right_index(i), i, this->dx,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					this->check_neighbour_v22_MF(check,this->get_right_index(i), i, this->dx,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					this->check_neighbour_v22(SS,this->get_bottom_index(i), i, this->dy,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					this->check_neighbour_v22_MF(check,this->get_bottom_index(i), i, this->dy,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					this->check_neighbour_v22(SS,this->get_topright_index(i), i, this->dxy,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					this->check_neighbour_v22_MF(check,this->get_topright_index(i), i, this->dxy,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					this->check_neighbour_v22(SS,this->get_topleft_index(i), i, this->dxy,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					this->check_neighbour_v22_MF(check,this->get_topleft_index(i), i, this->dxy,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					this->check_neighbour_v22(SS,this->get_bottomright_index(i), i, this->dxy,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					this->check_neighbour_v22_MF(check,this->get_bottomright_index(i), i, this->dxy,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					this->check_neighbour_v22(SS,this->get_bottomleft_index(i), i, this->dxy,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+					this->check_neighbour_v22_MF(check,this->get_bottomleft_index(i), i, this->dxy,Sdonors,Sreceivers,receivers,donors,Sdistance2receivers,distance2receivers, topography);
+				}
+			}
+
+		}
+
+		int Ndef = 0;
+		for(int row = 2; row < this->ny - 2; ++row)
+		{
+			for(int col = 2; col < this->nx - 2; ++col)
+			{
+				int i = row * this->nx + col;
+				if(receivers[i].size() + donors[i].size() < 8)
+					Ndef ++;
+			}
+		}
+
+		if(Ndef > 0)
+			std::cout << "WARNING::NDEF::" << Ndef << std::endl;
+
+	}
+
+
+
+
 
 	template<class V>
 	void rebuild_mgraph_after_solving_depression(std::vector<std::vector<int> >& Sdonors, std::vector<int>& Sreceivers, std::vector<std::vector<int> >& receivers,
@@ -295,7 +474,7 @@ public:
 
 				bool check = (col > 1 && row > 1 && col < this->nx - 2 && row < this->ny - 2 ) ? false : true;
 
-				check = true; // debugging statement
+				// check = true; // debugging statement
 
 
 				if(col > 0 && row > 0 && col < this->nx -1 && row < this->ny - 1 )
@@ -368,7 +547,7 @@ public:
 			return;
 		
 		if(topography[from] == topography[to])
-			return;
+			check = true;
 
 
 		int temp = from;
@@ -961,6 +1140,83 @@ public:
 			return false;
 	}
 
+	void print_dim()
+	{
+		std::cout << "nx:" << this->nx << std::endl;
+		std::cout << "ny:" << this->ny << std::endl;
+		std::cout << "nnodes:" << this->nnodes << std::endl;
+		std::cout << "dx:" << this->dx << std::endl;
+		std::cout << "dy:" << this->dy << std::endl;
+	}
+
+
+	template<class topo_t>
+	topo_t get_HS(topo_t& topography)
+	{
+		float altitude = 45;
+		float azimuth = 315;
+		float z_factor = 1;
+		float pi = 3.1415926;
+
+		// std::vector<float> hillshade(ptr, ptr + this->nnodes);
+		std::vector<float> hillshade(this->nnodes,0.);
+
+
+		//convert zenith and azimuth into radians for calculation
+		float zenith_rad = (90 - altitude) * pi / 180.0;
+		float azimuth_math = 360-azimuth + 90;
+		if (azimuth_math >= 360.0) azimuth_math = azimuth_math - 360;
+		float azimuth_rad = azimuth_math * pi /180.0;
+
+		for(int i = 0; i<this->nnodes; ++i)
+		{
+			// Ignoring no data
+			if(this->boundary[i] < 0)
+				continue;
+
+			float slope_rad = 0;
+			float aspect_rad = 0;
+			float dzdx = 0;
+			float dzdy = 0;
+
+			float ij = topography[i];
+			float ijp1 = topography[this->get_right_neighbour(i).node];
+			float ip1j = topography[this->get_bottom_neighbour(i).node];
+			float ip1jp1 = topography[this->get_bottomright_neighbour(i).node];
+			float im1jm1 = topography[this->get_topleft_neighbour(i).node];
+			float im1j = topography[this->get_top_neighbour(i).node];
+			float im1jp1 = topography[this->get_topright_neighbour(i).node];
+			float ijm1 = topography[this->get_left_neighbour(i).node];
+			float ip1jm1 = topography[this->get_bottomleft_neighbour(i).node];
+
+
+			if (ij > 0 )
+			{
+				dzdx = ((ijp1 + 2*ip1j + ip1jp1) - (im1jm1 + 2*im1j + im1jp1)) / (8 * this->dx);
+				dzdy = ((im1jp1 + 2*ijp1 + ip1jp1) - (im1jm1 + 2*ijm1 + ip1jm1)) / (8 * this->dy);
+				slope_rad = atan(z_factor * sqrt((dzdx*dzdx) + (dzdy*dzdy)));
+				if (dzdx != 0)
+				{
+					aspect_rad = std::atan2(dzdy, (dzdx*-1));
+					if (aspect_rad < 0) aspect_rad = 2*pi + aspect_rad;
+				}
+				else
+				{
+					if (dzdy > 0) aspect_rad = pi/2;
+					else if (dzdy < 0) aspect_rad = 2 * pi - pi/2;
+					else aspect_rad = aspect_rad;
+				}
+
+				hillshade[i] = ((std::cos(zenith_rad) * std::cos(slope_rad)) + (std::sin(zenith_rad) * std::sin(slope_rad) * std::cos(azimuth_rad - aspect_rad)));
+				// std::cout << hillshade[i] << "|";
+				if (hillshade[i] < 0) hillshade[i] = 0;
+			}
+
+		}
+
+		return hillshade;
+
+	}
 
 
 };

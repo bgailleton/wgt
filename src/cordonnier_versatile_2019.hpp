@@ -2062,7 +2062,7 @@ public:
 
 	LMRerouter(){;};
 
-	LMRerouter(Neighbourer_t& neighbourer,topo_t& topography, std::vector<n_t>& Sreceivers, std::vector<std::vector<n_t> >& Sdonors, std::vector<dist_t>& Sdistance2receivers, std::vector<n_t>& stack)
+	LMRerouter(Neighbourer_t& neighbourer,topo_t& topography, std::vector<n_t>& Sreceivers, std::vector<std::vector<n_t> >& Sdonors, std::vector<dist_t>& Sdistance2receivers, std::vector<size_t>& stack)
 	{
 		auto t1 = high_resolution_clock::now();
 		this->compute_basins_and_pits(neighbourer,topography,Sreceivers,Sdonors,Sdistance2receivers, stack);
@@ -2101,7 +2101,7 @@ public:
 	}
 
 	// Uses the stack structure to build a quick basin array
-	void compute_basins_and_pits(Neighbourer_t& neighbourer,topo_t& topography, std::vector<n_t>& Sreceivers, std::vector<std::vector<n_t> >& Sdonors, std::vector<dist_t>& Sdistance2receivers, std::vector<n_t>& stack)
+	void compute_basins_and_pits(Neighbourer_t& neighbourer,topo_t& topography, std::vector<n_t>& Sreceivers, std::vector<std::vector<n_t> >& Sdonors, std::vector<dist_t>& Sdistance2receivers, std::vector<size_t>& stack)
 	{
 		this->basin_labels = std::vector<n_t>(neighbourer.nnodes_t, -1);
 		this->basin_to_outlets.reserve(200);
@@ -2403,7 +2403,7 @@ public:
 	}
 
 	void _update_pits_receivers_carve(Neighbourer_t& neighbourer,topo_t& topography, std::vector<n_t>& Sreceivers, 
-		std::vector<std::vector<n_t> >& Sdonors, std::vector<dist_t>& Sdistance2receivers, std::vector<n_t>& stack)
+		std::vector<std::vector<n_t> >& Sdonors, std::vector<dist_t>& Sdistance2receivers, std::vector<size_t>& stack)
 	{
 
 		// std::cout <<"ID,rfrom,cfrom,rto,cto,rout,cout" << std::endl;
@@ -2420,20 +2420,6 @@ public:
 			int onode_to = tlink->node_to;
 			int onode_from = tlink->node_from;
 			int outlet_from = this->basin_to_outlets[tlink->from];
-
-			// if(this->graph->can_flow_out_there(outlet_from))
-			// {
-			// 	std::cout << "OUT??" << this->graph->can_flow_out_there(this->basin_to_outlets[this->basin_labels[node_to]]) << "|" << this->graph->can_flow_out_there(this->basin_to_outlets[this->basin_labels[node_from]]) << std::endl;
-			// 	continue;
-			// }
-
-			int rowf,colf,rowt,colt, rowo, colo;
-			// this->graph->rowcol_from_node_id(node_from,rowf,colf);
-			// this->graph->rowcol_from_node_id(node_to,rowt,colt);
-			// this->graph->rowcol_from_node_id(outlet_from,rowo,colo);
-			// std::cout << lab <<"," <<rowf <<"," <<colf <<"," << rowt<<"," <<colt <<"," << rowo<<"," << colo << std::endl;
-			// lab++;
-
 
 			int next_node = Sreceivers[node_from];
 			int temp = node_from;
@@ -2485,7 +2471,7 @@ public:
 
 
 	void _update_pits_receivers_sompli(Neighbourer_t& neighbourer,topo_t& topography, std::vector<n_t>& Sreceivers, 
-		std::vector<std::vector<n_t> >& Sdonors, std::vector<dist_t>& Sdistance2receivers, std::vector<n_t>& stack)
+		std::vector<std::vector<n_t> >& Sdonors, std::vector<dist_t>& Sdistance2receivers, std::vector<size_t>& stack)
 	{
 		// for i in mstree:
 		for(int i=this->stack.size() - 1; i >=0 ; --i)
@@ -2514,7 +2500,7 @@ public:
 	}
 
 	void _update_pits_receivers_fill(Neighbourer_t& neighbourer,topo_t& topography, std::vector<n_t>& Sreceivers, 
-		std::vector<std::vector<n_t> >& Sdonors, std::vector<dist_t>& Sdistance2receivers, std::vector<n_t>& stack)
+		std::vector<std::vector<n_t> >& Sdonors, std::vector<dist_t>& Sdistance2receivers, std::vector<size_t>& stack)
 	{
 		// for i in mstree:
 		// std::cout <<"yolo";
@@ -2575,7 +2561,7 @@ public:
 	// }
 
 
-	void update_receivers(std::string& method,Neighbourer_t& neighbourer,topo_t& topography, std::vector<n_t>& Sreceivers, std::vector<std::vector<n_t> >& Sdonors, std::vector<dist_t>& Sdistance2receivers, std::vector<n_t>& stack)
+	void update_receivers(std::string& method,Neighbourer_t& neighbourer,topo_t& topography, std::vector<n_t>& Sreceivers, std::vector<std::vector<n_t> >& Sdonors, std::vector<dist_t>& Sdistance2receivers, std::vector<size_t>& stack)
 	{
 
 		if(method == "simple" || method == "Simple")

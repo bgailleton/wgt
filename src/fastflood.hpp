@@ -19,7 +19,10 @@
 
 #include "chonkutils.hpp"
 #include "graph.hpp"
+#include "mgraph.hpp"
 #include "npy.hpp"
+
+
 #ifdef __EMSCRIPTEN__
 	#include <emscripten.h>
 #else
@@ -32,6 +35,74 @@
 #else
 	namespace py = pybind11;
 #endif
+
+
+
+
+template<class Neighbourer_t,class topo_t, class T>
+topo_t run_multi_fastflood_static(MGraph<T>& graph, Neighbourer_t& neighbourer, topo_t& hw, topo_t& topography, T manning, topo_t& precipitations, T pcoeff, T dt)
+{
+	// init the fluxes
+	topo_t diff(hw.size(),0.), Qin(hw.size(),0.);
+
+	// From upstream to downstream
+	for(int i = graph.nnodes-1; i>=0; --i)
+	{
+		int node = graph.stack[i];
+		if(neighbourer.is_active(node) == false)
+			continue;
+
+		if(graph.receivers.size() > 0)
+		{
+
+			Qin[node] += precipitations[node] * neighbourer.cellarea;
+
+			std::vector<T> weights(graph.receivers[node].size(),0.), slopes(graph.receivers[node].size());
+			T sumslopes = 0, fact = 0;
+			if(pcoeff == -1)
+			{
+				for(int j = 0;j < graph.receivers[node].size(); ++j)
+				{
+					int rec = graph.receivers[node][j];
+					slopes[j] = (topography[node] + hw[node] - topography[rec] - hw[rec])/graph.distance2receivers[node][j];
+					if(slopes[j] <= 0)
+						slopes[j] = 1e-5;
+					sumslopes += slopes[j];
+				}
+
+				for(int j = 0;j < graph.receivers[node].size(); ++j)
+				{
+					int rec = graph.receivers[node][j];
+					weights[j] = slopes[j]/sumslopes;
+					fact += weights[j] * std::sqrt(slopes[j]);
+					Qin[rec] += Qin[node] * weights[j];
+				}
+			}
+
+			diff[node] =  Qin[node] - 1/manning * std::pow(hw[node],5/3) * fact;
+		}
+
+		else
+		{
+			auto neighbours = neighbourer.get_neighbours_only_id(node);
+			T topomax = topography[node];
+			for(auto k:neighbours)
+			{
+				if(topography[k] > topomax)
+					topomax = topography[k];
+			}
+			diff[node] = (topomax + 1e-3)/dt;
+		}
+
+	}
+
+	return diff;
+
+}
+
+
+
+
 
 class FastFlood
 {

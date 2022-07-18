@@ -384,6 +384,57 @@ void normalise_vector(std::vector<float>& vec)
 
 
 
+template <typename T>
+std::vector<size_t> sort_indexes(const T &v) {
+
+  // initialize original index locations
+  std::vector<size_t> idx(v.size());
+  std::iota(idx.begin(), idx.end(), 0);
+
+  // sort indexes based on comparing values in v
+  // using std::stable_sort instead of std::sort
+  // to avoid unnecessary index re-orderings
+  // when v contains elements of equal values 
+  std::stable_sort(idx.begin(), idx.end(),
+       [&v](size_t i1, size_t i2) {return v[i1] < v[i2];});
+
+  return idx;
+}
+
+
+
+
+// int sort(std::vector<int>& array, int l, int h, int k)
+// {
+//   int mid = l + (h - l) / 2; //Chose middle element as pivot
+//   int i = max(l, mid - k), j = i, end = min(mid + k, h); // Set appropriate range
+//   swap(array[mid], array[end]); //Swap middle and last element to avoid extra complications
+//   while (j < end) {
+//       if (array[j] < array[end]) {
+//           swap(array[i++], array[j]);
+//       }
+//       j = j + 1;
+//   }
+//   swap(array[end], array[i]);
+//   return i;
+// }
+ 
+// void ksorter(std::vector<int>& array, int l, int h, int k)
+// {
+//   if (l < h) {
+//       int q = sort(array, l, h, k);
+//       ksorter(array, l, q - 1, k);
+//       ksorter(array, q + 1, h, k);
+//   }
+// }
+
+
+
+
+
+
+
+
 
 
 
