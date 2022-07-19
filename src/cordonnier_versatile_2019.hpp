@@ -2568,6 +2568,7 @@ public:
 			this->_update_pits_receivers_sompli(neighbourer,topography,Sreceivers,Sdistance2receivers,stack);
 		else if (method == "carve")
 		{
+			std::cout << "ACTUALLY CARVING" << std::endl;
 			this->_update_pits_receivers_carve(neighbourer,topography,Sreceivers,Sdistance2receivers,stack);
 		}
 		else if (method == "fill")

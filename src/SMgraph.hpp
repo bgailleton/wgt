@@ -75,12 +75,7 @@ public:
 		{
 			std::cout << "carving" << std::endl;
 			this->carve_topo(1e-3,neighbourer,faketopo);
-			// for(int i = this->nnodes - 1; i >= 0; --i)
-			// {
-			// 	int node = this->Sstack[i];
-			// 	int rec = this->Sreceivers[node];
-				
-			// }
+
 		}
 		else if (depression_solver == "fill")
 			this->fill_topo(1e-3,neighbourer,faketopo);
@@ -101,16 +96,22 @@ public:
 
 		neighbourer.build_smgraph_SS_only_SS(topography, this->Sreceivers, this->Sdistance2receivers, SS);
 		this->recompute_SF_donors_from_receivers();
+		
 		this->compute_TO_SF_stack_version();
+		
 		this->solve_depressions( depression_solver, neighbourer, topography);
+		
 		this->compute_TO_SF_stack_version();
 
 		topo_t faketopo(topography);
+
 		if(depression_solver == "carve")
 			this->carve_topo(1e-3,neighbourer,faketopo);
 		else if (depression_solver == "fill")
 			this->fill_topo(1e-3,neighbourer,faketopo);
+		
 		neighbourer.build_smgraph_only_MF(faketopo, this->isrec);
+		
 		this->compute_MF_topological_order_insort(faketopo);
 	
 		return faketopo;
@@ -154,7 +155,6 @@ public:
 
 		if(depsolver.npits > 0)
 		{
-			std::cout << "YOLO YOLO BENG BENG" << std::endl;
 			depsolver.update_receivers(depression_solver,neighbourer, topography, this->Sreceivers,  this->Sdistance2receivers, this->Sstack);
 			this->recompute_SF_donors_from_receivers();
 		}
@@ -206,11 +206,18 @@ public:
 		for(int i=this->nnodes-1; i >= 0; --i)
 		{
 			int node  = this->Sstack[i];
+			
+			if(node == 148880)
+				std::cout << "ASSESSED" << std::endl;
+
 			if(neighbourer.can_flow_out_there(node) || neighbourer.can_flow_even_go_there(node) == false)
 				continue;
+			if(node == 148880)
+				std::cout << "PASSED" << std::endl;
 			int rec = this->Sreceivers[node];
 			float dz = topography[node] - topography[rec];
-
+			if(node == 148880)
+				std::cout << "REC::" << rec << " DZ::" << dz << " TOPOREC::" << topography[rec] << std::endl;
 			if(dz <= 0)
 			{
 				float d2rec = this->Sdistance2receivers[node];
@@ -218,6 +225,9 @@ public:
 			}
 
 		}
+
+		std::cout << "TOPOREC::" << topography[147881]  << " TOPONODE::" << topography[148880]  << std::endl;
+
 	}
 
 	/// this function enforces minimal slope 
@@ -343,7 +353,7 @@ public:
 		topo_t DA(neighbourer.nnodes,0.);
 		for(int i = neighbourer.nnodes - 1; i>=0; --i)
 		{
-			int node = this->stack[i];
+			int node = this->Sstack[i];
 			DA[node] += neighbourer.cellarea;
 
 			if(neighbourer.is_active(node))
@@ -358,6 +368,18 @@ public:
 
 
 
+	template<class Neighbourer_t>
+	std::vector<int> get_rowcol_Sreceivers(int row, int col,  Neighbourer_t& neighbourer)
+	{
+		int node = neighbourer.nodeid_from_row_col(row,col);
+		std::vector<int> out_receivers;
+		int trow,tcol;
+		neighbourer.rowcol_from_node_id(this->Sreceivers[node],trow,tcol);
+		out_receivers = std::vector<int>{trow,tcol};
+		
+		std::cout << "Srec is " << this->Sreceivers[this->Sreceivers[node]] << " node was " << node << std::endl;
+		return out_receivers;
+	}
 
 
 

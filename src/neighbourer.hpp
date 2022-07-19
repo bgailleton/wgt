@@ -628,33 +628,37 @@ public:
 				float this_topo = topography[i];
 
 				int n = this->get_id_right_SMG(i);
+				int tn = this->get_right_index(i);
 				if(n!= this->not_a_node)
 				{
-					if(topography[n] < this_topo)
+					if(topography[tn] < this_topo)
 						isrec[n] = true;
 					else
 						isrec[n] = false;
 				}
 				n = this->get_id_bottomright_SMG(i);
+				tn = this->get_bottomright_index(i);
 				if(n!= this->not_a_node)
 				{
-					if(topography[n] < this_topo)
+					if(topography[tn] < this_topo)
 						isrec[n] = true;
 					else
 						isrec[n] = false;
 				}
 				n = this->get_id_bottom_SMG(i);
+				tn = this->get_bottom_index(i);
 				if(n!= this->not_a_node)
 				{
-					if(topography[n] < this_topo)
+					if(topography[tn] < this_topo)
 						isrec[n] = true;
 					else
 						isrec[n] = false;
 				}
 				n = this->get_id_bottomleft_SMG(i);
+				tn = this->get_bottomleft_index(i);
 				if(n!= this->not_a_node)
 				{
-					if(topography[n] < this_topo)
+					if(topography[tn] < this_topo)
 						isrec[n] = true;
 					else
 						isrec[n] = false;
@@ -669,28 +673,41 @@ public:
 			if(v)
 				Nrecs++;
 		}
-		std::cout << "GOT N recs = " << Nrecs << std::endl;
+		// std::cout << "GOT N recs = " << Nrecs << std::endl;
 
 	}
 
+
+	// This function builds the static graph steepest descent part
+	// It takes a topography and feed vectors of steepest receiver and associated distance
+	// SS is the steepest slope. The neighbouring algorithm is optimised to only check each pair of node once rather than looping through 8 neighbours for each nodes.
+	// While this represents a major speed up, it is not exactly twice as fast as it requires temporary storing of current Steepest slopes.
+	// It feeds the vectors in place and return nothing
+	// B.G. - last edit on the 19/07/2022
 	template<class topo_t>
 	void build_smgraph_SS_only_SS(topo_t& topography, std::vector<int>& Sreceivers, 
 		std::vector<float>& Sdistance2receivers, std::vector<float>& SS)
 	{
+
+		// Adding small noise to the topo to avoid flat surface (which will be sorted by a latter algorithm)
 		for(auto& v:topography)
 			v+= -1e-4 + static_cast <float> (rand()) /( static_cast <float> (RAND_MAX/(2e-4)));
 
+		// Iterating through every nodes, in a row/col fashion to beign able to add extra checks on boundaries 
 		for(int row = 0; row < this->ny; ++row)
 		{
 			for(int col = 0; col < this->nx; ++col)
 			{
+				// Getting current node id
 				int i = row * this->nx + col;
-				// cannot be a neighbour anyway, abort
+
+				//if nodata, it cannot be a neighbour anyway, abort
 				if(this->can_flow_even_go_there(i) == false)
 				{
 					continue;
 				}
 
+				// Only checking 4 neighbours for most nodes
 				if(col > 0 && row > 0 && col < this->nx -1 && row < this->ny - 1 )
 				{
 					this->check_neighbour_vSMG(SS,this->get_topleft_index(i), i, this->dxy,Sreceivers,Sdistance2receivers,topography);
@@ -700,6 +717,7 @@ public:
 				}
 				else
 				{
+					// 8 Neighbours for boundaries just in case (may be useless and to remove)
 					this->check_neighbour_vSMG(SS,this->get_top_index(i), i, this->dy,Sreceivers,Sdistance2receivers,topography);
 					this->check_neighbour_vSMG(SS,this->get_left_index(i), i, this->dx,Sreceivers,Sdistance2receivers,topography);
 					this->check_neighbour_vSMG(SS,this->get_right_index(i), i, this->dx,Sreceivers,Sdistance2receivers,topography);
@@ -710,10 +728,113 @@ public:
 					this->check_neighbour_vSMG(SS,this->get_bottomleft_index(i), i, this->dxy,Sreceivers,Sdistance2receivers,topography);
 				}
 			}
-
 		}
 
+		// and we are done
+
 	}
+
+
+
+	// OpenMP version of the above function
+	template<class topo_t>
+	void build_smgraph_SS_only_SS_OMP(topo_t& topography, std::vector<int>& Sreceivers, 
+		std::vector<float>& Sdistance2receivers, std::vector<float>& SS)
+	{
+
+		// Adding small noise to the topo to avoid flat surface (which will be sorted by a latter algorithm)
+		for(auto& v:topography)
+			v+= -1e-4 + static_cast <float> (rand()) /( static_cast <float> (RAND_MAX/(2e-4)));
+
+		// Iterating through every nodes, in a row/col fashion to beign able to add extra checks on boundaries 
+		#pragma omp parallel for
+		for(int row = 0; row < this->ny; ++row)
+		{
+			
+			if(row % 2 == 0)
+				continue;
+
+			for(int col = 0; col < this->nx; ++col)
+			{
+				// Getting current node id
+				int i = row * this->nx + col;
+
+				//if nodata, it cannot be a neighbour anyway, abort
+				if(this->can_flow_even_go_there(i) == false)
+				{
+					continue;
+				}
+
+				// Only checking 4 neighbours for most nodes
+				if(col > 0 && row > 0 && col < this->nx -1 && row < this->ny - 1 )
+				{
+					this->check_neighbour_vSMG(SS,this->get_topleft_index(i), i, this->dxy,Sreceivers,Sdistance2receivers,topography);
+					this->check_neighbour_vSMG(SS,this->get_top_index(i), i, this->dy,Sreceivers,Sdistance2receivers,topography);
+					this->check_neighbour_vSMG(SS,this->get_topright_index(i), i, this->dxy,Sreceivers,Sdistance2receivers,topography);
+					this->check_neighbour_vSMG(SS,this->get_right_index(i), i, this->dx,Sreceivers,Sdistance2receivers,topography);
+				}
+				else
+				{
+					// 8 Neighbours for boundaries just in case (may be useless and to remove)
+					this->check_neighbour_vSMG(SS,this->get_top_index(i), i, this->dy,Sreceivers,Sdistance2receivers,topography);
+					this->check_neighbour_vSMG(SS,this->get_left_index(i), i, this->dx,Sreceivers,Sdistance2receivers,topography);
+					this->check_neighbour_vSMG(SS,this->get_right_index(i), i, this->dx,Sreceivers,Sdistance2receivers,topography);
+					this->check_neighbour_vSMG(SS,this->get_bottom_index(i), i, this->dy,Sreceivers,Sdistance2receivers,topography);
+					this->check_neighbour_vSMG(SS,this->get_topright_index(i), i, this->dxy,Sreceivers,Sdistance2receivers,topography);
+					this->check_neighbour_vSMG(SS,this->get_topleft_index(i), i, this->dxy,Sreceivers,Sdistance2receivers,topography);
+					this->check_neighbour_vSMG(SS,this->get_bottomright_index(i), i, this->dxy,Sreceivers,Sdistance2receivers,topography);
+					this->check_neighbour_vSMG(SS,this->get_bottomleft_index(i), i, this->dxy,Sreceivers,Sdistance2receivers,topography);
+				}
+			}
+		}
+
+		// Iterating through every nodes, in a row/col fashion to beign able to add extra checks on boundaries 
+		#pragma omp parallel for
+		for(int row = 0; row < this->ny; ++row)
+		{
+
+			if(row % 2 == 1)
+				continue;
+
+			for(int col = 0; col < this->nx; ++col)
+			{
+				// Getting current node id
+				int i = row * this->nx + col;
+
+				//if nodata, it cannot be a neighbour anyway, abort
+				if(this->can_flow_even_go_there(i) == false)
+				{
+					continue;
+				}
+
+				// Only checking 4 neighbours for most nodes
+				if(col > 0 && row > 0 && col < this->nx -1 && row < this->ny - 1 )
+				{
+					this->check_neighbour_vSMG(SS,this->get_topleft_index(i), i, this->dxy,Sreceivers,Sdistance2receivers,topography);
+					this->check_neighbour_vSMG(SS,this->get_top_index(i), i, this->dy,Sreceivers,Sdistance2receivers,topography);
+					this->check_neighbour_vSMG(SS,this->get_topright_index(i), i, this->dxy,Sreceivers,Sdistance2receivers,topography);
+					this->check_neighbour_vSMG(SS,this->get_right_index(i), i, this->dx,Sreceivers,Sdistance2receivers,topography);
+				}
+				else
+				{
+					// 8 Neighbours for boundaries just in case (may be useless and to remove)
+					this->check_neighbour_vSMG(SS,this->get_top_index(i), i, this->dy,Sreceivers,Sdistance2receivers,topography);
+					this->check_neighbour_vSMG(SS,this->get_left_index(i), i, this->dx,Sreceivers,Sdistance2receivers,topography);
+					this->check_neighbour_vSMG(SS,this->get_right_index(i), i, this->dx,Sreceivers,Sdistance2receivers,topography);
+					this->check_neighbour_vSMG(SS,this->get_bottom_index(i), i, this->dy,Sreceivers,Sdistance2receivers,topography);
+					this->check_neighbour_vSMG(SS,this->get_topright_index(i), i, this->dxy,Sreceivers,Sdistance2receivers,topography);
+					this->check_neighbour_vSMG(SS,this->get_topleft_index(i), i, this->dxy,Sreceivers,Sdistance2receivers,topography);
+					this->check_neighbour_vSMG(SS,this->get_bottomright_index(i), i, this->dxy,Sreceivers,Sdistance2receivers,topography);
+					this->check_neighbour_vSMG(SS,this->get_bottomleft_index(i), i, this->dxy,Sreceivers,Sdistance2receivers,topography);
+				}
+			}
+		}
+
+		// and we are done
+
+	}
+
+
 
 	int get_id_right_SMG(int i){return i*4;}
 	int get_id_bottomright_SMG(int i){return i*4 + 1;}
