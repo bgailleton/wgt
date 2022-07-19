@@ -11,6 +11,7 @@
 #include <map>
 #include <ctime>
 #include <fstream>
+#include <random>
 #include <queue>
 #include <iostream>
 #include <numeric>
@@ -18,7 +19,6 @@
 #include <initializer_list>
 #include <stdio.h>
 #include <string.h>
-
 
 
 
@@ -383,12 +383,55 @@ void normalise_vector(std::vector<float>& vec)
 
 
 
+// Small class emulating some aspect of a vector vector from its pointer
+template<class T>
+class pvector
+{
+public:
+	std::shared_ptr<std::vector<T> > data;
+
+	pvector(){};
+	pvector(std::vector<T>& dat){this->data = std::make_shared<std::vector<T> >(dat);}
+	pvector(std::vector<T>* dat){this->data = std::make_shared<std::vector<T> >(dat);}
+	size_t size(){return this->data->size();}
+  T & operator [](int i) {return (*this->data)[i];}
+  void emplace_back(T& tin){this->data->emplace_back(tin);}
+  void push_back(T& tin){this->data->push_back(tin);}
+  void shrink_to_fit(){this->data->shrink_to_fit();}
+  void clear(){this->data->clear();}
+
+};
+
+
+// template<class Neighbourer, class Holder>
+// class RasterData
+// {
+// public:
+
+// 	Holder data;
+
+// 	RasterData(){}
+// 	RasterData(Holder& ho){this->data = ho;}
+
+// 	T operator [](int i) const    {return this->data[i];}
+//   T & operator [](int i) {return this->data[i];}
+
+// };
+
+
+
+
+
+
+
+
 
 template <typename T>
-std::vector<size_t> sort_indexes(const T &v) {
+std::vector<size_t> sort_indexes(T &v) {
 
   // initialize original index locations
-  std::vector<size_t> idx(v.size());
+  int size = int(v.size());
+  std::vector<size_t> idx(size);
   std::iota(idx.begin(), idx.end(), 0);
 
   // sort indexes based on comparing values in v
@@ -402,8 +445,27 @@ std::vector<size_t> sort_indexes(const T &v) {
 }
 
 
+template<class T, class U>
+void add_noise_to_vector(T& vec, U min, U max)
+{
 
+	std::random_device rd; // obtain a random number from hardware
+  std::mt19937 gen(rd()); // seed the generator
+  std::uniform_real_distribution<> distr(min, max); // define the range
 
+  for(size_t i=0; i<vec.size(); ++i)
+  {
+  	auto cd = distr(gen);
+  	vec[i] += cd;
+  }
+
+}
+
+template<class T>
+pvector<T> format_input(std::vector<T>& in){return pvector<T>(in);}
+
+template<class T>
+pvector<T> format_input(pvector<T>& in){return in;}
 // int sort(std::vector<int>& array, int l, int h, int k)
 // {
 //   int mid = l + (h - l) / 2; //Chose middle element as pivot

@@ -30,6 +30,8 @@
 // -> lightweigth numpy export
 #include "npy.hpp"
 
+#include "numvec.hpp"
+
 // If compiling for web (using emscripten)
 #ifdef __EMSCRIPTEN__
 	#include <emscripten.h>
@@ -221,9 +223,15 @@ public:
 
 
 	template<class U, class V>
-	void build_mgraph(U& SS, std::vector<std::vector<int> >& Sdonors, std::vector<int>& Sreceivers, std::vector<std::vector<int> >& receivers,
-		std::vector<std::vector<int> >& donors, std::vector<T>& Sdistance2receivers, std::vector<std::vector<T> >& distance2receivers, V& topography )
+	void build_mgraph(U& tSS, std::vector<std::vector<int> >& Sdonors, std::vector<int>& Sreceivers, std::vector<std::vector<int> >& receivers,
+		std::vector<std::vector<int> >& donors, std::vector<T>& Sdistance2receivers, std::vector<std::vector<T> >& distance2receivers, V& ttopography )
 	{
+		
+
+
+		auto topography = format_input(ttopography);
+		auto SS = format_input(tSS);
+		
 
 		for(int i=0; i<this->nnodes;++i)
 		{
@@ -233,8 +241,7 @@ public:
 			distance2receivers[i].reserve(8);
 		}		
 
-		for(auto& v:topography)
-			v+= -1e-4 + static_cast <float> (rand()) /( static_cast <float> (RAND_MAX/(2e-4)));
+		add_noise_to_vector(topography,-1e-6,1e-6);
 
 		for(int row = 0; row < this->ny; ++row)
 		{
@@ -320,7 +327,7 @@ public:
 
 		#pragma omp parallel for num_threads(n_proc) 
 		for(int i = 0; i<this->nnodes; ++i)
-			topography[i]+= -1e-4 + static_cast <float> (rand()) /( static_cast <float> (RAND_MAX/(2e-4)));
+			topography[i]+= -1e-4 + static_cast <double> (rand()) /( static_cast <double> (RAND_MAX/(2e-4)));
 
 
 		#pragma omp parallel for num_threads(n_proc) 
@@ -543,6 +550,7 @@ public:
 
 		if(this->can_flow_even_go_there(ne) == false)
 			return;
+
 		
 		T this_elev = topography[i];
 
@@ -608,24 +616,29 @@ public:
 	}
 
 
+	// This function feed is isrec bool vector of a SMGraph
 	template<class topo_t>
 	void build_smgraph_only_MF(topo_t& topography, std::vector<bool>& isrec)
-	{
-		for(auto& v:topography)
-			v+= -1e-4 + static_cast <float> (rand()) /( static_cast <float> (RAND_MAX/(2e-4)));
+	{		
 
+		
+
+		// looping thorugh row col to being able to deal with BC
 		for(int row = 0; row < this->ny; ++row)
 		{
 			for(int col = 0; col < this->nx; ++col)
 			{
+
+				// Getting node ID
 				int i = row * this->nx + col;
+
 				// cannot be a neighbour anyway, abort
 				if(this->can_flow_even_go_there(i) == false)
 				{
 					continue;
 				}
 
-				float this_topo = topography[i];
+				double this_topo = topography[i];
 
 				int n = this->get_id_right_SMG(i);
 				int tn = this->get_right_index(i);
@@ -667,15 +680,136 @@ public:
 			}
 		}
 
-		int Nrecs = 0;
-		for(auto v:isrec)
+	}
+
+	// This function feed is isrec bool vector of a SMGraph
+	template<class topo_t>
+	void build_smgraph_only_MF_OMP(topo_t& topography, std::vector<bool>& isrec)
+	{
+
+
+
+		// looping thorugh row col to being able to deal with BC
+		
+		for(int row = 0; row < this->ny; ++row)
 		{
-			if(v)
-				Nrecs++;
+			if(row % 2 == 0)
+				continue;
+			for(int col = 0; col < this->nx; ++col)
+			{
+
+				// Getting node ID
+				int i = row * this->nx + col;
+
+				// cannot be a neighbour anyway, abort
+				if(this->can_flow_even_go_there(i) == false)
+				{
+					continue;
+				}
+
+				double this_topo = topography[i];
+
+				int n = this->get_id_right_SMG(i);
+				int tn = this->get_right_index(i);
+				if(n!= this->not_a_node)
+				{
+					if(topography[tn] < this_topo)
+						isrec[n] = true;
+					else
+						isrec[n] = false;
+				}
+				n = this->get_id_bottomright_SMG(i);
+				tn = this->get_bottomright_index(i);
+				if(n!= this->not_a_node)
+				{
+					if(topography[tn] < this_topo)
+						isrec[n] = true;
+					else
+						isrec[n] = false;
+				}
+				n = this->get_id_bottom_SMG(i);
+				tn = this->get_bottom_index(i);
+				if(n!= this->not_a_node)
+				{
+					if(topography[tn] < this_topo)
+						isrec[n] = true;
+					else
+						isrec[n] = false;
+				}
+				n = this->get_id_bottomleft_SMG(i);
+				tn = this->get_bottomleft_index(i);
+				if(n!= this->not_a_node)
+				{
+					if(topography[tn] < this_topo)
+						isrec[n] = true;
+					else
+						isrec[n] = false;
+				}
+
+			}
 		}
-		// std::cout << "GOT N recs = " << Nrecs << std::endl;
+
+		#pragma omp parallel for
+		for(int row = 0; row < this->ny; ++row)
+		{
+			if(row % 2 == 1)
+				continue;
+			for(int col = 0; col < this->nx; ++col)
+			{
+
+				// Getting node ID
+				int i = row * this->nx + col;
+
+				// cannot be a neighbour anyway, abort
+				if(this->can_flow_even_go_there(i) == false)
+				{
+					continue;
+				}
+
+				double this_topo = topography[i];
+
+				int n = this->get_id_right_SMG(i);
+				int tn = this->get_right_index(i);
+				if(n!= this->not_a_node)
+				{
+					if(topography[tn] < this_topo)
+						isrec[n] = true;
+					else
+						isrec[n] = false;
+				}
+				n = this->get_id_bottomright_SMG(i);
+				tn = this->get_bottomright_index(i);
+				if(n!= this->not_a_node)
+				{
+					if(topography[tn] < this_topo)
+						isrec[n] = true;
+					else
+						isrec[n] = false;
+				}
+				n = this->get_id_bottom_SMG(i);
+				tn = this->get_bottom_index(i);
+				if(n!= this->not_a_node)
+				{
+					if(topography[tn] < this_topo)
+						isrec[n] = true;
+					else
+						isrec[n] = false;
+				}
+				n = this->get_id_bottomleft_SMG(i);
+				tn = this->get_bottomleft_index(i);
+				if(n!= this->not_a_node)
+				{
+					if(topography[tn] < this_topo)
+						isrec[n] = true;
+					else
+						isrec[n] = false;
+				}
+
+			}
+		}
 
 	}
+
 
 
 	// This function builds the static graph steepest descent part
@@ -684,14 +818,11 @@ public:
 	// While this represents a major speed up, it is not exactly twice as fast as it requires temporary storing of current Steepest slopes.
 	// It feeds the vectors in place and return nothing
 	// B.G. - last edit on the 19/07/2022
-	template<class topo_t>
+	template<class topo_t, class SS_t>
 	void build_smgraph_SS_only_SS(topo_t& topography, std::vector<int>& Sreceivers, 
-		std::vector<float>& Sdistance2receivers, std::vector<float>& SS)
+		std::vector<double>& Sdistance2receivers, SS_t& SS)
 	{
 
-		// Adding small noise to the topo to avoid flat surface (which will be sorted by a latter algorithm)
-		for(auto& v:topography)
-			v+= -1e-4 + static_cast <float> (rand()) /( static_cast <float> (RAND_MAX/(2e-4)));
 
 		// Iterating through every nodes, in a row/col fashion to beign able to add extra checks on boundaries 
 		for(int row = 0; row < this->ny; ++row)
@@ -737,14 +868,10 @@ public:
 
 
 	// OpenMP version of the above function
-	template<class topo_t>
+	template<class topo_t, class SS_t>
 	void build_smgraph_SS_only_SS_OMP(topo_t& topography, std::vector<int>& Sreceivers, 
-		std::vector<float>& Sdistance2receivers, std::vector<float>& SS)
+		std::vector<double>& Sdistance2receivers, SS_t& SS)
 	{
-
-		// Adding small noise to the topo to avoid flat surface (which will be sorted by a latter algorithm)
-		for(auto& v:topography)
-			v+= -1e-4 + static_cast <float> (rand()) /( static_cast <float> (RAND_MAX/(2e-4)));
 
 		// Iterating through every nodes, in a row/col fashion to beign able to add extra checks on boundaries 
 		#pragma omp parallel for
@@ -1425,23 +1552,24 @@ public:
 	}
 
 
-	template<class topo_t>
-	topo_t get_HS(topo_t& topography)
+	template<class topo_t, class out_t>
+	out_t get_HS(topo_t& ttopography)
 	{
-		float altitude = 45;
-		float azimuth = 315;
-		float z_factor = 1;
-		float pi = 3.1415926;
+		auto topography = format_input(ttopography);
+		double altitude = 45;
+		double azimuth = 315;
+		double z_factor = 1;
+		double pi = 3.1415926;
 
-		// std::vector<float> hillshade(ptr, ptr + this->nnodes);
-		std::vector<float> hillshade(this->nnodes,0.);
+		// std::vector<double> hillshade(ptr, ptr + this->nnodes);
+		std::vector<double> hillshade(this->nnodes,0.);
 
 
 		//convert zenith and azimuth into radians for calculation
-		float zenith_rad = (90 - altitude) * pi / 180.0;
-		float azimuth_math = 360-azimuth + 90;
+		double zenith_rad = (90 - altitude) * pi / 180.0;
+		double azimuth_math = 360-azimuth + 90;
 		if (azimuth_math >= 360.0) azimuth_math = azimuth_math - 360;
-		float azimuth_rad = azimuth_math * pi /180.0;
+		double azimuth_rad = azimuth_math * pi /180.0;
 
 		for(int i = 0; i<this->nnodes; ++i)
 		{
@@ -1449,20 +1577,20 @@ public:
 			if(this->boundary[i] < 0)
 				continue;
 
-			float slope_rad = 0;
-			float aspect_rad = 0;
-			float dzdx = 0;
-			float dzdy = 0;
+			double slope_rad = 0;
+			double aspect_rad = 0;
+			double dzdx = 0;
+			double dzdy = 0;
 
-			float ij = topography[i];
-			float ijp1 = topography[this->get_right_neighbour(i).node];
-			float ip1j = topography[this->get_bottom_neighbour(i).node];
-			float ip1jp1 = topography[this->get_bottomright_neighbour(i).node];
-			float im1jm1 = topography[this->get_topleft_neighbour(i).node];
-			float im1j = topography[this->get_top_neighbour(i).node];
-			float im1jp1 = topography[this->get_topright_neighbour(i).node];
-			float ijm1 = topography[this->get_left_neighbour(i).node];
-			float ip1jm1 = topography[this->get_bottomleft_neighbour(i).node];
+			double ij = topography[i];
+			double ijp1 = topography[this->get_right_neighbour(i).node];
+			double ip1j = topography[this->get_bottom_neighbour(i).node];
+			double ip1jp1 = topography[this->get_bottomright_neighbour(i).node];
+			double im1jm1 = topography[this->get_topleft_neighbour(i).node];
+			double im1j = topography[this->get_top_neighbour(i).node];
+			double im1jp1 = topography[this->get_topright_neighbour(i).node];
+			double ijm1 = topography[this->get_left_neighbour(i).node];
+			double ip1jm1 = topography[this->get_bottomleft_neighbour(i).node];
 
 
 			if (ij > 0 )
@@ -1489,7 +1617,7 @@ public:
 
 		}
 
-		return hillshade;
+		return format_output(hillshade);
 
 	}
 

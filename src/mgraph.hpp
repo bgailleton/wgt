@@ -30,6 +30,7 @@
 #include "npy.hpp"
 
 #include "neighbourer.hpp"
+#include "numvec.hpp"
 
 // If compiling for web (using emscripten)
 #ifdef __EMSCRIPTEN__
@@ -112,7 +113,7 @@ public:
 	{
 		int N = 10000000;
 
-		std::vector<float> yabul(N);
+		std::vector<double> yabul(N);
 
 		auto t1 = high_resolution_clock::now();
 		
@@ -146,10 +147,10 @@ public:
 
 	void yonolomp(int n_proc)
 	{
-		std::vector<float> yabul(this->nnodes * 10);
+		std::vector<double> yabul(this->nnodes * 10);
 		#pragma omp parallel for num_threads(n_proc)
 		for(int i = 0; i<this->nnodes; ++i)
-			yabul[i]+= -1e-4 + static_cast <float> (rand()) /( static_cast <float> (RAND_MAX/(2e-4)));
+			yabul[i]+= -1e-4 + static_cast <double> (rand()) /( static_cast <double> (RAND_MAX/(2e-4)));
 	}
 
 
@@ -165,10 +166,12 @@ public:
 	// All the methods related to accessing and calculating neighbours
 	// ------------------------------------------------
 
-	template<class Neighbourer_t, class topo_t>
-	topo_t compute_graph(std::string depression_solver, Neighbourer_t& neighbourer, topo_t& topography)
+	template<class Neighbourer_t, class topo_t, class out_t>
+	out_t compute_graph(std::string depression_solver, Neighbourer_t& neighbourer, topo_t& ttopography)
 	{
 		// std::cout << "ASDFdsfa->1" << std::endl;
+		auto topography = format_input(ttopography);
+
 		auto t1 = high_resolution_clock::now();
 		this->compute_graph_both_v2(neighbourer,topography);
 		auto t2 = high_resolution_clock::now();
@@ -183,7 +186,8 @@ public:
 		double time_compute_TO_SF_stack_version1 = ms_double.count();
 
 		// std::cout << "ASDFdsfa->3" << std::endl;
-		topo_t faketopo(topography);
+		std::vector<double> faketopo = to_vec(topography);
+
 		if(depression_solver != "none")
 		{
 			t1 = high_resolution_clock::now();
@@ -198,8 +202,6 @@ public:
 			t2 = high_resolution_clock::now();
 			ms_double = t2 - t1;
 			double time_compute_TO_SF_stack_version2 = ms_double.count();
-
-
 
 			t1 = high_resolution_clock::now();
 			if(depression_solver == "fill")
@@ -245,15 +247,19 @@ public:
 			// std::cout << "time_rebuild_mgraph::" << time_rebuild_mgraph << std::endl;
 			// std::cout << "time_compute_MF_topological_order::" << time_compute_MF_topological_order << std::endl;
 		}
-		return faketopo;
+
+
+		return format_output(faketopo);
 	}
 
 
 
-	template<class Neighbourer_t, class topo_t>
-	topo_t compute_graph_OMP(std::string depression_solver, Neighbourer_t& neighbourer, topo_t& topography, int n_proc)
+	template<class Neighbourer_t, class topo_t, class out_t>
+	out_t compute_graph_OMP(std::string depression_solver, Neighbourer_t& neighbourer, topo_t& ttopography, int n_proc)
 	{
 		// std::cout << "ASDFdsfa->1" << std::endl;
+		auto topography = format_input(ttopography);
+
 		auto t1 = high_resolution_clock::now();
 		this->compute_graph_both_v2_OMP(neighbourer,topography, n_proc);
 		auto t2 = high_resolution_clock::now();
@@ -268,7 +274,7 @@ public:
 		double time_compute_TO_SF_stack_version1 = ms_double.count();
 
 		// std::cout << "ASDFdsfa->3" << std::endl;
-		topo_t faketopo(topography);
+		std::vector<double> faketopo = to_vec(topography);
 		if(depression_solver != "none")
 		{
 			t1 = high_resolution_clock::now();
@@ -330,14 +336,15 @@ public:
 			// std::cout << "time_rebuild_mgraph::" << time_rebuild_mgraph << std::endl;
 			// std::cout << "time_compute_MF_topological_order::" << time_compute_MF_topological_order << std::endl;
 		}
-		return faketopo;
+		return format_output(faketopo);
 	}
 
 
-	template<class Neighbourer_t, class topo_t>
-	topo_t update_graph(std::string depression_solver, Neighbourer_t& neighbourer, topo_t& topography)
+	template<class Neighbourer_t, class topo_t, class out_t>
+	out_t update_graph(std::string depression_solver, Neighbourer_t& neighbourer, topo_t& ttopography)
 	{
 		// std::cout << "ASDFdsfa->1" << std::endl;
+		auto topography = format_input(ttopography);
 		auto t1 = high_resolution_clock::now();
 		// this->compute_graph_both_v2(neighbourer,topography);
 		this->update_receivers_v2(topography);
@@ -356,7 +363,7 @@ public:
 		double time_compute_TO_SF_stack_version1 = ms_double.count();
 
 		// std::cout << "ASDFdsfa->3" << std::endl;
-		topo_t faketopo(topography);
+		std::vector<double> faketopo = to_vec(topography);
 		if(depression_solver != "none")
 		{
 			t1 = high_resolution_clock::now();
@@ -432,12 +439,13 @@ public:
 			// std::cout << "time_rebuild_mgraph::" << time_rebuild_mgraph << std::endl;
 			// std::cout << "time_compute_MF_topological_order::" << time_compute_MF_topological_order << std::endl;
 		}
-		return faketopo;
+		return format_output(faketopo);
 	}
 
 	template<class Neighbourer_t, class topo_t>
-	void compute_graph_both_v2(Neighbourer_t& neighbourer, topo_t& topography)
+	void compute_graph_both_v2(Neighbourer_t& neighbourer, topo_t& ttopography)
 	{
+		auto topography = format_input(ttopography);
 		// Initialising the graph dimesions for the receivers
 		// All of thenm have the graph dimension
 		this->Sreceivers.clear();
@@ -466,10 +474,11 @@ public:
 
 
 	template<class Neighbourer_t, class topo_t>
-	void compute_graph_both_v2_OMP(Neighbourer_t& neighbourer, topo_t& topography, int n_proc)
+	void compute_graph_both_v2_OMP(Neighbourer_t& neighbourer, topo_t& ttopography, int n_proc)
 	{
 		// Initialising the graph dimesions for the receivers
 		// All of thenm have the graph dimension
+		auto topography = format_input(ttopography);
 		this->Sreceivers.clear();
 		this->Sdonors.clear();
 		this->Sdistance2receivers.clear();
@@ -514,8 +523,10 @@ public:
 	}
 
 	template<class topo_t>
-	void update_receivers(topo_t& topography)
+	void update_receivers(topo_t& ttopography)
 	{
+		auto topography = format_input(ttopography);
+
 		std::vector<std::vector<int> > nreceivers(this->receivers.size());
 		std::vector<std::vector<int> > ndonors(this->receivers.size());
 		std::vector<std::vector<T> > ndistance2receivers(this->distance2receivers);
@@ -551,8 +562,9 @@ public:
 
 
 	template<class topo_t>
-	void update_receivers_v2(topo_t& topography)
+	void update_receivers_v2(topo_t& ttopography)
 	{
+		auto topography = format_input(ttopography);
 
 		std::vector<bool> need_redodon(this->nnodes,false);
 		for(int i = 0; i<this->nnodes; ++i)
@@ -616,8 +628,10 @@ public:
 	}
 
 	template<class topo_t, class Neighbourer_t>
-	void update_Srecs_from_recs(topo_t& topography, Neighbourer_t& neighbourer )
+	void update_Srecs_from_recs(topo_t& ttopography, Neighbourer_t& neighbourer )
 	{
+		auto topography = format_input(ttopography);
+
 
 		for(int i=0;i<this->nnodes; ++i)
 		{
@@ -650,9 +664,9 @@ public:
 	}
 
 	template<class Neighbourer_t, class topo_t>
-	void solve_depressions(std::string& depression_solver , Neighbourer_t& neighbourer, topo_t& topography)
+	void solve_depressions(std::string& depression_solver , Neighbourer_t& neighbourer, topo_t& ttopography)
 	{
-		
+		auto topography = format_input(ttopography);
 		LMRerouter depsolver(neighbourer, topography, this->Sreceivers,  this->Sdistance2receivers, this->Sstack);
 
 
@@ -669,8 +683,9 @@ public:
 	
 	/// this function enforces minimal slope 
 	template<class Neighbourer_t, class topo_t>
-	void carve_topo(T slope, Neighbourer_t& neighbourer, topo_t& topography)
+	void carve_topo(T slope, Neighbourer_t& neighbourer, topo_t& ttopography)
 	{
+		auto topography = format_input(ttopography);
 
 		for(int i=this->nnodes-1; i >= 0; --i)
 		{
@@ -691,8 +706,9 @@ public:
 
 	/// this function enforces minimal slope 
 	template<class Neighbourer_t, class topo_t>
-	void fill_topo(T slope, Neighbourer_t& neighbourer, topo_t& topography)
+	void fill_topo(T slope, Neighbourer_t& neighbourer, topo_t& ttopography)
 	{
+		auto topography = format_input(ttopography);
 		for(int i=0; i < this->nnodes; ++i)
 		{
 			int node  = this->Sstack[i];
@@ -864,8 +880,9 @@ public:
 	}
 
 	template<class topo_t>
-	void compute_MF_topological_order_insort(topo_t& topography)
+	void compute_MF_topological_order_insort(topo_t& ttopography)
 	{
+		auto topography = format_input(ttopography);
 
 		auto yolo = sort_indexes(topography);
 		this->stack = std::move(yolo);
@@ -873,8 +890,9 @@ public:
 	}
 
 	template<class topo_t>
-	void recompute_MF_topological_order_insort(topo_t& topography)
+	void recompute_MF_topological_order_insort(topo_t& ttopography)
 	{
+		auto topography = format_input(ttopography);
 
 		for(std::size_t j = 1; j < this->stack.size(); ++j)
     {
@@ -898,10 +916,13 @@ public:
 
 
 
-	template<class Neighbourer_t, class topo_t>
-	topo_t get_DA_proposlope(Neighbourer_t& neighbourer, topo_t& topography)
+	template<class Neighbourer_t, class topo_t, class out_t>
+	out_t get_DA_proposlope(Neighbourer_t& neighbourer, topo_t& ttopography)
 	{
-		topo_t DA(neighbourer.nnodes,0.);
+		auto topography = format_input(ttopography);
+
+		std::vector<double> DA(neighbourer.nnodes,0.);
+
 		for(int i = neighbourer.nnodes - 1; i>=0; --i)
 		{
 			int node = this->stack[i];
@@ -909,8 +930,8 @@ public:
 
 			if(neighbourer.is_active(node))
 			{
-				topo_t slopes(this->receivers[node].size());
-				float sumslopes = 0;
+				std::vector<double> slopes(this->receivers[node].size());
+				double sumslopes = 0;
 				for(int j = 0;j < this->receivers[node].size(); ++j)
 				{
 					int rec = this->receivers[node][j];
@@ -929,13 +950,14 @@ public:
 			}
 		}
 
-		return DA;
+		return format_output(DA);
 	}
 
-	template<class Neighbourer_t, class topo_t>
-	topo_t get_DA_SS(Neighbourer_t& neighbourer, topo_t& topography)
+	template<class Neighbourer_t, class topo_t, class out_t>
+	out_t get_DA_SS(Neighbourer_t& neighbourer, topo_t& ttopography)
 	{
-		topo_t DA(neighbourer.nnodes,0.);
+		auto topography = format_input(ttopography);
+		std::vector<double> DA(neighbourer.nnodes,0.);
 		for(int i = neighbourer.nnodes - 1; i>=0; --i)
 		{
 			int node = this->stack[i];
@@ -948,7 +970,7 @@ public:
 			}
 		}
 
-		return DA;
+		return format_output(DA);
 	}
 
 

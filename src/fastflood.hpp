@@ -21,6 +21,7 @@
 #include "graph.hpp"
 #include "mgraph.hpp"
 #include "npy.hpp"
+#include "numvec.hpp"
 
 
 #ifdef __EMSCRIPTEN__
@@ -39,11 +40,14 @@
 
 
 
-template<class Neighbourer_t,class topo_t, class T>
-topo_t run_multi_fastflood_static(MGraph<T>& graph, Neighbourer_t& neighbourer, topo_t& hw, topo_t& topography, T manning, topo_t& precipitations, T pcoeff, T dt)
+template<class Neighbourer_t,class topo_t, class T, class out_t>
+out_t run_multi_fastflood_static(MGraph<T>& graph, Neighbourer_t& neighbourer, topo_t& thw, topo_t& ttopography, T manning, topo_t& tprecipitations, T pcoeff, T dt)
 {
 	// init the fluxes
-	topo_t diff(hw.size(),0.), Qin(hw.size(),0.);
+	auto hw = format_input(thw);
+	auto topography = format_input(ttopography);
+	auto precipitations = format_input(tprecipitations);
+	std::vector<double> diff(hw.size(),0.), Qin(hw.size(),0.);
 
 	// From upstream to downstream
 	for(int i = graph.nnodes-1; i>=0; --i)
@@ -96,7 +100,7 @@ topo_t run_multi_fastflood_static(MGraph<T>& graph, Neighbourer_t& neighbourer, 
 
 	}
 
-	return diff;
+	return format_output(diff);
 
 }
 

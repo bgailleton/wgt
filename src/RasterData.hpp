@@ -43,41 +43,6 @@
 
 
 
-// Small class emulating some aspect of a vector vector from its pointer
-template<class T>
-class pvector
-{
-public:
-	std::vector<T>* data;
-
-	pvector(){};
-	pvector(std::vector<T>& dat){this->data = &dat;}
-	pvector(std::vector<T>* dat){this->data = dat;}
-	size_t size(){return this->data->size();}
-	T operator [](int i) const    {return (*this->data)[i];}
-  T & operator [](int i) {return (*this->data)[i];}
-  void emplace_back(T& tin){this->data->emplace_back(tin);}
-  void push_back(T& tin){this->data->push_back(tin);}
-  void shrink_to_fit(){this->data->shrink_to_fit();}
-  void clear(){this->data->clear();}
-
-}
-
-
-template<class Neighbourer, class Holder>
-class RasterData
-{
-public:
-
-	Holder data;
-
-	RasterData(){}
-	RasterData(Holder& ho){this->data = ho;}
-
-	T operator [](int i) const    {return this->data[i];}
-  T & operator [](int i) {return this->data[i];}
-
-};
 
 
 
