@@ -22,7 +22,7 @@
 
 #include "chonkutils.hpp"
 #include "graph.hpp"
-#include "wapart.hpp"
+// #include "wapart.hpp"
 #include "PerlinNoise.hpp"
 
 #include "npy.hpp"
@@ -960,203 +960,203 @@ public:
 	void set_Acritbeach(float A){this->Acritbeach = A;}
 
 
-	void hydraulic_erosion_graph_sources(float coefK, int n_sources)
-	{
-		std::vector<int> sources; sources.reserve(this->graph.nnodes);
-		for(int i=0; i<this->graph.nnodes; ++i)
-		{
-			if(this->graph.can_flow_even_go_there(i) == false)
-				continue;
-			if(this->graph.donors[i].size() == 0)
-				sources.emplace_back(i);
-		}
+	// void hydraulic_erosion_graph_sources(float coefK, int n_sources)
+	// {
+	// 	std::vector<int> sources; sources.reserve(this->graph.nnodes);
+	// 	for(int i=0; i<this->graph.nnodes; ++i)
+	// 	{
+	// 		if(this->graph.can_flow_even_go_there(i) == false)
+	// 			continue;
+	// 		if(this->graph.donors[i].size() == 0)
+	// 			sources.emplace_back(i);
+	// 	}
 
-		sources.shrink_to_fit();
-		std::vector<bool> source_done(sources.size(),false), need_proc(this->graph.nnodes, false);
+	// 	sources.shrink_to_fit();
+	// 	std::vector<bool> source_done(sources.size(),false), need_proc(this->graph.nnodes, false);
 
-		for(int nsamples = 0; nsamples < n_sources; ++nsamples)
-		{
-			while(true)
-			{
-				int randpos = floor(static_cast <float> (rand()) / (static_cast <float> (RAND_MAX))  * int( sources.size() ) );
-				if(source_done[randpos])
-					continue;
+	// 	for(int nsamples = 0; nsamples < n_sources; ++nsamples)
+	// 	{
+	// 		while(true)
+	// 		{
+	// 			int randpos = floor(static_cast <float> (rand()) / (static_cast <float> (RAND_MAX))  * int( sources.size() ) );
+	// 			if(source_done[randpos])
+	// 				continue;
 				
-				source_done[randpos] = true;
-				need_proc[sources[randpos]] = true;
-				break;
-			}
-		}
+	// 			source_done[randpos] = true;
+	// 			need_proc[sources[randpos]] = true;
+	// 			break;
+	// 		}
+	// 	}
 
-		for(int i =  this->graph.nnodes - 1; i >= 0; --i)
-		{
-			int tnode = this->graph.stack[i];
-			if(need_proc[tnode] == false)
-				continue;
-			int trec = this->graph.receivers[tnode];
-			need_proc[trec] = true;
-		}
+	// 	for(int i =  this->graph.nnodes - 1; i >= 0; --i)
+	// 	{
+	// 		int tnode = this->graph.stack[i];
+	// 		if(need_proc[tnode] == false)
+	// 			continue;
+	// 		int trec = this->graph.receivers[tnode];
+	// 		need_proc[trec] = true;
+	// 	}
 
-		this->run_SPL_basic_for_hydraulic_erosion(coefK, need_proc);
+	// 	this->run_SPL_basic_for_hydraulic_erosion(coefK, need_proc);
 
-	}
+	// }
 
-	void hydraulic_erosion_graph_all(float coefK, int n_sources)
-	{
+	// void hydraulic_erosion_graph_all(float coefK, int n_sources)
+	// {
 
-		std::vector<bool> need_proc(this->graph.nnodes, false);
+	// 	std::vector<bool> need_proc(this->graph.nnodes, false);
 
-		for(int nsamples = 0; nsamples < n_sources; ++nsamples)
-		{
-			while(true)
-			{
-				int randpos = floor(static_cast <float> (rand()) / (static_cast <float> (RAND_MAX))  * int( this->graph.nnodes ) );
-				if(need_proc[randpos])
-					continue;
+	// 	for(int nsamples = 0; nsamples < n_sources; ++nsamples)
+	// 	{
+	// 		while(true)
+	// 		{
+	// 			int randpos = floor(static_cast <float> (rand()) / (static_cast <float> (RAND_MAX))  * int( this->graph.nnodes ) );
+	// 			if(need_proc[randpos])
+	// 				continue;
 				
-				need_proc[randpos] = true;
-				break;
-			}
-		}
+	// 			need_proc[randpos] = true;
+	// 			break;
+	// 		}
+	// 	}
 
-		for(int i =  this->graph.nnodes - 1; i >= 0; --i)
-		{
-			int tnode = this->graph.stack[i];
-			if(need_proc[tnode] == false)
-				continue;
-			int trec = this->graph.receivers[tnode];
-			need_proc[trec] = true;
-		}
+	// 	for(int i =  this->graph.nnodes - 1; i >= 0; --i)
+	// 	{
+	// 		int tnode = this->graph.stack[i];
+	// 		if(need_proc[tnode] == false)
+	// 			continue;
+	// 		int trec = this->graph.receivers[tnode];
+	// 		need_proc[trec] = true;
+	// 	}
 
-		this->run_SPL_basic_for_hydraulic_erosion(coefK, need_proc);
+	// 	this->run_SPL_basic_for_hydraulic_erosion(coefK, need_proc);
 
-	}
+	// }
 
 
 
-	void simple_hydraulic_erosion(int n_drops, float tdt, float friction, float scale, float depositionRate, float evapRate, float k_err)
-	{
-		int n_break = 0;
-		for (int i=0; i < n_drops; ++i)
-		{
-			// Determining random position
-			// std::srand(std::time(0));
-			int randpos = floor(static_cast <float> (rand()) / (static_cast <float> (RAND_MAX))  * this->graph.nnodes);
+	// void simple_hydraulic_erosion(int n_drops, float tdt, float friction, float scale, float depositionRate, float evapRate, float k_err)
+	// {
+	// 	int n_break = 0;
+	// 	for (int i=0; i < n_drops; ++i)
+	// 	{
+	// 		// Determining random position
+	// 		// std::srand(std::time(0));
+	// 		int randpos = floor(static_cast <float> (rand()) / (static_cast <float> (RAND_MAX))  * this->graph.nnodes);
 
-			// std::cout << randpos << std::endl;
-			// creating particles
-			wapart<float,int> tparticle(this->graph, randpos);
-			// std::cout << tparticle.check_if_in_dem() << std::endl;
+	// 		// std::cout << randpos << std::endl;
+	// 		// creating particles
+	// 		wapart<float,int> tparticle(this->graph, randpos);
+	// 		// std::cout << tparticle.check_if_in_dem() << std::endl;
 
-			// running the while loop
-			int n_speed_0 = 0;
+	// 		// running the while loop
+	// 		int n_speed_0 = 0;
 
-			while(tparticle.check_if_in_dem())
-			{
-				int temp_i = tparticle.i;
-				// std::cout << "1" << std::endl;
-				tparticle.compute_speed(tdt, friction, scale);
+	// 		while(tparticle.check_if_in_dem())
+	// 		{
+	// 			int temp_i = tparticle.i;
+	// 			// std::cout << "1" << std::endl;
+	// 			tparticle.compute_speed(tdt, friction, scale);
 
-				if(temp_i ==tparticle.i )
-					n_speed_0++;
+	// 			if(temp_i ==tparticle.i )
+	// 				n_speed_0++;
 
-				if(this->graph.is_on_dem_edge(tparticle.i))
-					continue;
-				// std::cout << tparticle.i << "|";
-				// std::cout << "2" << std::endl;
-				// float dz = this->graph.topography[temp_i] - this->graph.topography[tparticle.i];
-				tparticle.compute_c_eq(this->graph.topography[temp_i] - this->graph.topography[tparticle.i]);
-				// std::cout << dz << " vs " << tparticle.c_eq << "||";
-				// std::cout << "3" << std::endl;
-				tparticle.compute_ED(tdt, depositionRate, k_err);
-				// std::cout << "4" << std::endl;
-				tparticle.evaporate(tdt, evapRate);
-				// std::cout << "5" << std::endl;
-				// if(tparticle.speed.x + tparticle.speed.y < 1e-3)
-				// 	n_speed_0 ++;
-				if(n_speed_0 > 10)
-				{
-					n_break++;
-					break;
-				}
-				if(tparticle.volume < 0.05)
-					break;
-			}
+	// 			if(this->graph.is_on_dem_edge(tparticle.i))
+	// 				continue;
+	// 			// std::cout << tparticle.i << "|";
+	// 			// std::cout << "2" << std::endl;
+	// 			// float dz = this->graph.topography[temp_i] - this->graph.topography[tparticle.i];
+	// 			tparticle.compute_c_eq(this->graph.topography[temp_i] - this->graph.topography[tparticle.i]);
+	// 			// std::cout << dz << " vs " << tparticle.c_eq << "||";
+	// 			// std::cout << "3" << std::endl;
+	// 			tparticle.compute_ED(tdt, depositionRate, k_err);
+	// 			// std::cout << "4" << std::endl;
+	// 			tparticle.evaporate(tdt, evapRate);
+	// 			// std::cout << "5" << std::endl;
+	// 			// if(tparticle.speed.x + tparticle.speed.y < 1e-3)
+	// 			// 	n_speed_0 ++;
+	// 			if(n_speed_0 > 10)
+	// 			{
+	// 				n_break++;
+	// 				break;
+	// 			}
+	// 			if(tparticle.volume < 0.05)
+	// 				break;
+	// 		}
 			
-		}
+	// 	}
 
-		std::cout << n_break << " were stopped in the middle " << std::endl;
-	}
+	// 	std::cout << n_break << " were stopped in the middle " << std::endl;
+	// }
 
-	void simple_hydraulic_erosion_v2(int n_drops, float k_err, float exp_err, float k_dep, float exp_dep, float factor)
-	{
-		int n_break = 0;
-		std::vector<float> topo(this->graph.topography);
-		for (int i=0; i < n_drops; ++i)
-		{
-			// Determining random position
-			// std::srand(std::time(0));
-			int randpos = floor(static_cast <float> (rand()) / (static_cast <float> (RAND_MAX))  * this->graph.nnodes);
+	// void simple_hydraulic_erosion_v2(int n_drops, float k_err, float exp_err, float k_dep, float exp_dep, float factor)
+	// {
+	// 	int n_break = 0;
+	// 	std::vector<float> topo(this->graph.topography);
+	// 	for (int i=0; i < n_drops; ++i)
+	// 	{
+	// 		// Determining random position
+	// 		// std::srand(std::time(0));
+	// 		int randpos = floor(static_cast <float> (rand()) / (static_cast <float> (RAND_MAX))  * this->graph.nnodes);
 
-			// std::cout << randpos << std::endl;
-			// creating particles
-			wapart2<float,int> tparticle(this->graph, randpos);
-			// std::cout << tparticle.check_if_in_dem() << std::endl;
-			int n_loop = 0;
-			while(true)
-			{
-				n_loop++;
-				// std::cout << tparticle.sediments << "|";
-				bool test = tparticle.compute_sloperec(topo);
-				if(this->graph.is_on_dem_edge(tparticle.i) || test == false)
-				{
-					// if(test == false && this->graph.is_on_dem_edge(tparticle.i) == false)
-					// 	tparticle.fill();
+	// 		// std::cout << randpos << std::endl;
+	// 		// creating particles
+	// 		wapart2<float,int> tparticle(this->graph, randpos);
+	// 		// std::cout << tparticle.check_if_in_dem() << std::endl;
+	// 		int n_loop = 0;
+	// 		while(true)
+	// 		{
+	// 			n_loop++;
+	// 			// std::cout << tparticle.sediments << "|";
+	// 			bool test = tparticle.compute_sloperec(topo);
+	// 			if(this->graph.is_on_dem_edge(tparticle.i) || test == false)
+	// 			{
+	// 				// if(test == false && this->graph.is_on_dem_edge(tparticle.i) == false)
+	// 				// 	tparticle.fill();
 
-					break;
-				}
-				tparticle.mass_transfer(k_err ,exp_err,k_dep,exp_dep,factor);
-				tparticle.move();
-			}
-			// std::cout << std::endl;
-		}
-	}
+	// 				break;
+	// 			}
+	// 			tparticle.mass_transfer(k_err ,exp_err,k_dep,exp_dep,factor);
+	// 			tparticle.move();
+	// 		}
+	// 		// std::cout << std::endl;
+	// 	}
+	// }
 
 
-	void simple_hydraulic_erosion_v3(int n_drops, float K, float tm, float tn, float L, float factor)
-	{
-		int n_break = 0;
-		std::vector<float> topo(this->graph.topography);
-		for (int i=0; i < n_drops; ++i)
-		{
-			// Determining random position
-			// std::srand(std::time(0));
-			int randpos = floor(static_cast <float> (rand()) / (static_cast <float> (RAND_MAX))  * this->graph.nnodes);
+	// void simple_hydraulic_erosion_v3(int n_drops, float K, float tm, float tn, float L, float factor)
+	// {
+	// 	int n_break = 0;
+	// 	std::vector<float> topo(this->graph.topography);
+	// 	for (int i=0; i < n_drops; ++i)
+	// 	{
+	// 		// Determining random position
+	// 		// std::srand(std::time(0));
+	// 		int randpos = floor(static_cast <float> (rand()) / (static_cast <float> (RAND_MAX))  * this->graph.nnodes);
 
-			// std::cout << randpos << std::endl;
-			// creating particles
-			wapart2<float,int> tparticle(this->graph, randpos);
-			// std::cout << tparticle.check_if_in_dem() << std::endl;
-			int n_loop = 0;
-			while(true)
-			{
-				n_loop++;
-				// std::cout << tparticle.sediments << "|";
-				bool test = tparticle.compute_sloperec(topo);
-				if(this->graph.is_on_dem_edge(tparticle.i) || test == false)
-				{
-					// if(test == false && this->graph.is_on_dem_edge(tparticle.i) == false)
-					// 	tparticle.fill();
+	// 		// std::cout << randpos << std::endl;
+	// 		// creating particles
+	// 		wapart2<float,int> tparticle(this->graph, randpos);
+	// 		// std::cout << tparticle.check_if_in_dem() << std::endl;
+	// 		int n_loop = 0;
+	// 		while(true)
+	// 		{
+	// 			n_loop++;
+	// 			// std::cout << tparticle.sediments << "|";
+	// 			bool test = tparticle.compute_sloperec(topo);
+	// 			if(this->graph.is_on_dem_edge(tparticle.i) || test == false)
+	// 			{
+	// 				// if(test == false && this->graph.is_on_dem_edge(tparticle.i) == false)
+	// 				// 	tparticle.fill();
 
-					break;
-				}
-				// tparticle.mass_transfer(k_err ,exp_err,k_dep,exp_dep,factor);
-				tparticle.mass_transfer_SPL( K,  tm,  tn,  L, factor);
-				tparticle.move();
-			}
-			// std::cout << std::endl;
-		}
-	}
+	// 				break;
+	// 			}
+	// 			// tparticle.mass_transfer(k_err ,exp_err,k_dep,exp_dep,factor);
+	// 			tparticle.mass_transfer_SPL( K,  tm,  tn,  L, factor);
+	// 			tparticle.move();
+	// 		}
+	// 		// std::cout << std::endl;
+	// 	}
+	// }
 
 
 

@@ -20,6 +20,7 @@
 #include "chonkutils.hpp"
 #include "graph.hpp"
 #include "mgraph.hpp"
+#include "SMgraph.hpp"
 #include "npy.hpp"
 #include "numvec.hpp"
 
@@ -41,7 +42,7 @@
 
 
 template<class Neighbourer_t,class topo_t, class T, class out_t>
-out_t run_multi_fastflood_static(MGraph<T>& graph, Neighbourer_t& neighbourer, topo_t& thw, topo_t& ttopography, T manning, topo_t& tprecipitations, T pcoeff, T dt)
+out_t run_multi_fastflood_static_old(MGraph<T>& graph, Neighbourer_t& neighbourer, topo_t& thw, topo_t& ttopography, T manning, topo_t& tprecipitations, T pcoeff, T dt)
 {
 	// init the fluxes
 	auto hw = format_input(thw);
@@ -99,6 +100,279 @@ out_t run_multi_fastflood_static(MGraph<T>& graph, Neighbourer_t& neighbourer, t
 		}
 
 	}
+
+	return format_output(diff);
+
+}
+
+template<class Neighbourer_t,class topo_t, class T, class out_t>
+out_t run_multi_fastflood_static(SMgraph& graph, Neighbourer_t& neighbourer, topo_t& thw, topo_t& ttopography, T manning, topo_t& tprecipitations, T dt)
+{
+	// init the fluxes
+	auto hw = format_input(thw);
+	auto topography = format_input(ttopography);
+	auto precipitations = format_input(tprecipitations);
+	std::vector<double> diff(hw.size(),0.), Qin(hw.size(),0.), sumslopes(hw.size(),0), Sw(graph.isrec.size(),1e-5);
+	std::vector<int> nrecs(hw.size(),0);
+
+	// std::cout << "FF::DEBUG::1" << std::endl;
+	for(int i = 0; i< neighbourer.nnodes; ++i)
+	{
+
+		// cannot be a neighbour anyway, abort
+		if(neighbourer.can_flow_even_go_there(i) == false)
+			continue;
+
+		double this_topo = topography[i];
+
+		int n = neighbourer.get_id_right_SMG(i);
+		int tn = neighbourer.get_right_index(i);
+		if(n >=0 && n<neighbourer.nnodes * 4 && tn >= 0 && tn < neighbourer.nnodes)
+		{
+			Sw[n] = std::max(std::sqrt(std::abs(topography[i] + hw[i] - topography[tn] - hw[tn])/neighbourer.dx), 1e-6);
+			if(topography[i] + hw[i] > topography[tn] + hw[tn])
+				sumslopes[i] += Sw[n];
+			else
+				sumslopes[tn] += Sw[n];
+
+		}
+		
+		n = neighbourer.get_id_bottomright_SMG(i);
+		tn = neighbourer.get_bottomright_index(i);
+		if(n >=0 && n<neighbourer.nnodes * 4 && tn >= 0 && tn < neighbourer.nnodes)
+		{
+			Sw[n] = std::max(std::sqrt(std::abs(topography[i] + hw[i] - topography[tn] - hw[tn])/neighbourer.dxy), 1e-6);
+			if(topography[i] + hw[i] > topography[tn] + hw[tn])
+				sumslopes[i] += Sw[n];
+			else
+				sumslopes[tn] += Sw[n];
+
+		}
+
+		n = neighbourer.get_id_bottom_SMG(i);
+		tn = neighbourer.get_bottom_index(i);
+		if(n >=0 && n<neighbourer.nnodes * 4 && tn >= 0 && tn < neighbourer.nnodes)
+		{
+			Sw[n] = std::max(std::sqrt(std::abs(topography[i] + hw[i] - topography[tn] - hw[tn])/neighbourer.dy), 1e-6);
+			if(topography[i] + hw[i] > topography[tn] + hw[tn])
+				sumslopes[i] += Sw[n];
+			else
+				sumslopes[tn] += Sw[n];
+
+		}
+
+		n = neighbourer.get_id_bottomleft_SMG(i);
+		tn = neighbourer.get_bottomleft_index(i);
+		if(n >=0 && n<neighbourer.nnodes * 4 && tn >= 0 && tn < neighbourer.nnodes)
+		{
+			Sw[n] = std::max(std::sqrt(std::abs(topography[i] + hw[i] - topography[tn] - hw[tn])/neighbourer.dxy), 1e-6);
+			if(topography[i] + hw[i] > topography[tn] + hw[tn])
+				sumslopes[i] += Sw[n];
+			else
+				sumslopes[tn] += Sw[n];
+		}
+
+	}
+
+	// for(auto v:Sw)
+	// {
+	// 	if(std::isfinite(v) == false)
+	// 	{
+	// 		std::cout << neighbourer.dx << "|" << neighbourer.dy << "|" << neighbourer.dxy << std::endl;
+	// 		throw std::runtime_error("YOLOSw");
+	// 	}
+	// }
+
+	// for(auto v:sumslopes)
+	// {
+	// 	if(std::isfinite(v) == false || v<=0)
+	// 	{
+	// 		std::cout << v << std::endl;
+	// 		throw std::runtime_error("YOLOSumsloe[s");
+	// 	}
+	// }
+	// std::cout << "FF::DEBUG::2" << std::endl;
+
+	for(int i = graph.nnodes-1; i>=0; --i)
+	{
+		// std::cout << "FF::DEBUG::2.1::" << i << std::endl;
+		int node = graph.stack[i];
+
+		// std::cout << "FF::DEBUG::2.2" << std::endl;
+		if(neighbourer.can_flow_even_go_there(node) == false)
+			continue;
+		
+		// std::cout << "FF::DEBUG::2.3" << std::endl;
+		Qin[node] += precipitations[node] * neighbourer.cellarea;
+		// std::cout << "FF::DEBUG::2.4::" << node << std::endl;
+
+		auto recs = graph.get_receiver_link_indices(node,neighbourer);
+		// std::cout << "FF::DEBUG::2.5" << std::endl;
+		double sumst = 0;
+		for(auto rec:recs)
+		{
+		// std::cout << "FF::DEBUG::2.51::" << rec.first <<"|" << rec.second << std::endl;
+			if(rec.first < 0 || rec.first >= neighbourer.nnodes)
+				continue;
+
+			Qin[rec.first] += Qin[node] * Sw[rec.second]/sumslopes[node];
+
+			nrecs[node] += 1;
+			sumst+= Sw[rec.second]/sumslopes[node];
+		}
+		// if(std::abs(sumst - 1) > 1e-3)
+		// 	std::cout << "WABUL>>>" << sumst << std::endl;
+		// std::cout << "FF::DEBUG::2.6" << std::endl;
+
+	}
+
+	// for(auto v:Qin)
+	// {
+	// 	if(std::isfinite(v) == false)
+	// 		throw std::runtime_error("YOLOQin");
+	// }
+
+	// std::cout << "FF::DEBUG::3" << std::endl;
+
+
+	for(int i=0; i<neighbourer.nnodes; ++i)
+	{
+		if(neighbourer.is_active(i) == false)
+			continue;
+
+		if(nrecs[i] == 0)
+		{
+			std::cout << "happens" << std::endl;
+			diff[i] = Qin[i];
+		}
+		else
+			diff[i] =  Qin[i] - 1/manning * std::pow(hw[i],5/3) * sumslopes[i]/nrecs[i];
+	}
+
+
+	// for(auto v:diff)
+	// {
+	// 	if(std::isfinite(v) == false)
+	// 		throw std::runtime_error("YOLOdiff");
+	// }
+	// std::cout << "FF::DEBUG::4" << std::endl;
+
+	return format_output(diff);
+
+}
+
+
+template<class Neighbourer_t,class topo_t, class T, class out_t>
+out_t run_multi_fastflood_static_OMP(SMgraph& graph, Neighbourer_t& neighbourer, topo_t& thw, topo_t& ttopography, T manning, topo_t& tprecipitations, T dt)
+{
+	// init the fluxes
+	auto hw = format_input(thw);
+	auto topography = format_input(ttopography);
+	auto precipitations = format_input(tprecipitations);
+	std::vector<double> diff(hw.size(),0.), Qin(hw.size(),0.), sumslopes(hw.size(),0.), Sw(graph.isrec.size(),1e-5);
+	std::vector<int> nrecs(hw.size(),0);
+
+	py::gil_scoped_release release;
+
+	// std::cout << "FF::DEBUG::1" << std::endl;
+	#pragma omp parallel for num_threads(4)
+	for(int i = 0; i< neighbourer.nnodes; ++i)
+	{
+
+		// cannot be a neighbour anyway, abort
+		if(neighbourer.can_flow_even_go_there(i) == false)
+			continue;
+
+		double this_topo = topography[i];
+
+		int n = neighbourer.get_id_right_SMG(i);
+		int tn = neighbourer.get_right_index(i);
+		if(n >=0 && n<neighbourer.nnodes * 4 && tn >= 0 && tn < neighbourer.nnodes)
+		{
+			Sw[n] = std::max(std::sqrt(std::abs(topography[i] + hw[i] - topography[tn] - hw[tn])/neighbourer.dx), 1e-6);
+			sumslopes[tn] += Sw[n];
+
+		}
+		
+		n = neighbourer.get_id_bottomright_SMG(i);
+		tn = neighbourer.get_bottomright_index(i);
+		if(n >=0 && n<neighbourer.nnodes * 4 && tn >= 0 && tn < neighbourer.nnodes)
+		{
+			Sw[n] = std::max(std::sqrt(std::abs(topography[i] + hw[i] - topography[tn] - hw[tn])/neighbourer.dxy), 1e-6);
+			sumslopes[tn] += Sw[n];
+
+		}
+
+		n = neighbourer.get_id_bottom_SMG(i);
+		tn = neighbourer.get_bottom_index(i);
+		if(n >=0 && n<neighbourer.nnodes * 4 && tn >= 0 && tn < neighbourer.nnodes)
+		{
+			Sw[n] = std::max(std::sqrt(std::abs(topography[i] + hw[i] - topography[tn] - hw[tn])/neighbourer.dy), 1e-6);
+			sumslopes[tn] += Sw[n];
+
+		}
+
+		n = neighbourer.get_id_bottomleft_SMG(i);
+		tn = neighbourer.get_bottomleft_index(i);
+		if(n >=0 && n<neighbourer.nnodes * 4 && tn >= 0 && tn < neighbourer.nnodes)
+		{
+			Sw[n] = std::max(std::sqrt(std::abs(topography[i] + hw[i] - topography[tn] - hw[tn])/neighbourer.dxy), 1e-6);
+			sumslopes[tn] += Sw[n];
+
+		}
+	}
+	std::cout << "FF::DEBUG::2" << std::endl;
+	for(auto v:Sw)
+	{
+		if(std::isfinite(v) == false)
+			throw std::runtime_error("YOLO");
+	}
+
+	for(int i = graph.nnodes-1; i>=0; --i)
+	{
+		// std::cout << "FF::DEBUG::2.1::" << i << std::endl;
+		int node = graph.stack[i];
+
+		// std::cout << "FF::DEBUG::2.2" << std::endl;
+		if(neighbourer.can_flow_even_go_there(node) == false)
+			continue;
+		
+		// std::cout << "FF::DEBUG::2.3" << std::endl;
+		Qin[node] += precipitations[node] * neighbourer.cellarea;
+		// std::cout << "FF::DEBUG::2.4::" << node << std::endl;
+
+		
+
+		auto recs = graph.get_receiver_link_indices(node,neighbourer);
+		// std::cout << "FF::DEBUG::2.5" << std::endl;
+		
+		for(auto rec:recs)
+		{
+		// std::cout << "FF::DEBUG::2.51::" << rec.first <<"|" << rec.second << std::endl;
+			if(rec.first < 0 || rec.first >= neighbourer.nnodes)
+				continue;
+
+			Qin[rec.first] += Qin[node] * Sw[rec.second]/sumslopes[rec.first];
+
+			++nrecs[rec.first];
+		}
+		// std::cout << "FF::DEBUG::2.6" << std::endl;
+
+	}
+
+
+
+	// std::cout << "FF::DEBUG::3" << std::endl;
+
+
+	#pragma omp parallel for num_threads(4)
+	for(int i=0; i<neighbourer.nnodes; ++i)
+	{
+		diff[i] =  Qin[i] - 1/manning * std::pow(hw[i],5/3) * std::sqrt(sumslopes[i])/nrecs[i];
+	}
+
+	// std::cout << "FF::DEBUG::4" << std::endl;
+	py::gil_scoped_acquire acquire;
 
 	return format_output(diff);
 

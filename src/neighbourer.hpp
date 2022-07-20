@@ -642,7 +642,7 @@ public:
 
 				int n = this->get_id_right_SMG(i);
 				int tn = this->get_right_index(i);
-				if(n!= this->not_a_node)
+				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					if(topography[tn] < this_topo)
 						isrec[n] = true;
@@ -651,7 +651,7 @@ public:
 				}
 				n = this->get_id_bottomright_SMG(i);
 				tn = this->get_bottomright_index(i);
-				if(n!= this->not_a_node)
+				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					if(topography[tn] < this_topo)
 						isrec[n] = true;
@@ -660,7 +660,7 @@ public:
 				}
 				n = this->get_id_bottom_SMG(i);
 				tn = this->get_bottom_index(i);
-				if(n!= this->not_a_node)
+				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					if(topography[tn] < this_topo)
 						isrec[n] = true;
@@ -669,7 +669,7 @@ public:
 				}
 				n = this->get_id_bottomleft_SMG(i);
 				tn = this->get_bottomleft_index(i);
-				if(n!= this->not_a_node)
+				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					if(topography[tn] < this_topo)
 						isrec[n] = true;
@@ -690,7 +690,7 @@ public:
 
 
 		// looping thorugh row col to being able to deal with BC
-		
+		#pragma omp parallel for num_threads(4)
 		for(int row = 0; row < this->ny; ++row)
 		{
 			if(row % 2 == 0)
@@ -711,7 +711,7 @@ public:
 
 				int n = this->get_id_right_SMG(i);
 				int tn = this->get_right_index(i);
-				if(n!= this->not_a_node)
+				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					if(topography[tn] < this_topo)
 						isrec[n] = true;
@@ -720,7 +720,7 @@ public:
 				}
 				n = this->get_id_bottomright_SMG(i);
 				tn = this->get_bottomright_index(i);
-				if(n!= this->not_a_node)
+				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					if(topography[tn] < this_topo)
 						isrec[n] = true;
@@ -729,7 +729,7 @@ public:
 				}
 				n = this->get_id_bottom_SMG(i);
 				tn = this->get_bottom_index(i);
-				if(n!= this->not_a_node)
+				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					if(topography[tn] < this_topo)
 						isrec[n] = true;
@@ -738,7 +738,7 @@ public:
 				}
 				n = this->get_id_bottomleft_SMG(i);
 				tn = this->get_bottomleft_index(i);
-				if(n!= this->not_a_node)
+				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					if(topography[tn] < this_topo)
 						isrec[n] = true;
@@ -749,7 +749,7 @@ public:
 			}
 		}
 
-		#pragma omp parallel for
+		#pragma omp parallel for num_threads(4)
 		for(int row = 0; row < this->ny; ++row)
 		{
 			if(row % 2 == 1)
@@ -770,7 +770,7 @@ public:
 
 				int n = this->get_id_right_SMG(i);
 				int tn = this->get_right_index(i);
-				if(n!= this->not_a_node)
+				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					if(topography[tn] < this_topo)
 						isrec[n] = true;
@@ -779,7 +779,7 @@ public:
 				}
 				n = this->get_id_bottomright_SMG(i);
 				tn = this->get_bottomright_index(i);
-				if(n!= this->not_a_node)
+				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					if(topography[tn] < this_topo)
 						isrec[n] = true;
@@ -788,7 +788,7 @@ public:
 				}
 				n = this->get_id_bottom_SMG(i);
 				tn = this->get_bottom_index(i);
-				if(n!= this->not_a_node)
+				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					if(topography[tn] < this_topo)
 						isrec[n] = true;
@@ -797,7 +797,7 @@ public:
 				}
 				n = this->get_id_bottomleft_SMG(i);
 				tn = this->get_bottomleft_index(i);
-				if(n!= this->not_a_node)
+				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					if(topography[tn] < this_topo)
 						isrec[n] = true;
@@ -874,7 +874,7 @@ public:
 	{
 
 		// Iterating through every nodes, in a row/col fashion to beign able to add extra checks on boundaries 
-		#pragma omp parallel for
+		#pragma omp parallel for num_threads(4)
 		for(int row = 0; row < this->ny; ++row)
 		{
 			
@@ -916,7 +916,7 @@ public:
 		}
 
 		// Iterating through every nodes, in a row/col fashion to beign able to add extra checks on boundaries 
-		#pragma omp parallel for
+		#pragma omp parallel for num_threads(4)
 		for(int row = 0; row < this->ny; ++row)
 		{
 
@@ -956,6 +956,8 @@ public:
 				}
 			}
 		}
+
+		// 
 
 		// and we are done
 
@@ -1620,6 +1622,94 @@ public:
 		return format_output(hillshade);
 
 	}
+
+
+
+
+
+
+
+	template <class topo_t>
+	std::vector<double> fill_barne_2014(topo_t& ttopography)
+	{
+
+		std::random_device rd; // obtain a random number from hardware
+	  std::mt19937 gen(rd()); // seed the generator
+	  std::uniform_real_distribution<> distr(1e-7, 1e-6); // define the range
+
+		std::vector<double> topography = to_vec(ttopography);
+
+	  std::priority_queue< PQ_helper<int,double>, std::vector<PQ_helper<int,double> >, std::greater<PQ_helper<int,double> > > open;
+	  std::queue<PQ_helper<int,double> > pit;
+
+	  uint64_t processed_cells = 0;
+	  uint64_t pitc            = 0;
+	  int      false_pit_cells = 0;
+	  double PitTop = -9999;
+
+	  std::vector<bool> closed(this->nnodes,false);
+
+	  // RDLOG_PROGRESS<<"Adding cells to the priority queue...";
+	  for(int i = 0; i<this->nnodes; ++i)
+	  {
+	  	if(this->can_flow_out_there(i))
+	  	{
+	  		closed[i] = true; 
+	  		open.emplace(i,topography[i]);
+	  	}
+	  }
+
+	  // RDLOG_PROGRESS<<"Performing Priority-Flood+Epsilon...";
+
+	  while(open.size()>0 || pit.size()>0)
+	  {
+	    PQ_helper<int,double> c;
+
+	    if(pit.size()>0 && open.size()>0 && open.top().score==pit.front().score)
+	    {
+	      c=open.top(); open.pop();
+	      PitTop=-9999;
+	    } 
+	    else if(pit.size()>0)
+	    {
+	      c=pit.front(); pit.pop();
+	      if(PitTop==-9999)
+	        PitTop=topography[c.node];
+	    } 
+	    else 
+	    {
+	      c=open.top(); open.pop();
+	      PitTop=-9999;
+	    }
+	    processed_cells++;
+
+	    auto neighbours = this->get_neighbours_only_id(c.node);
+	    for(auto n:neighbours)
+	    {
+	      if(this->is_active(n) == false) 
+	      	continue;
+
+	      if(closed[n])
+	        continue;
+
+	      closed[n]=true;
+	      if(topography[n] <= std::nextafter(c.score,std::numeric_limits<double>::infinity()))
+	      {
+	        if(PitTop!=-9999 && PitTop<topography[n] && std::nextafter(c.score,std::numeric_limits<double>::infinity())>=topography[n])
+	          ++false_pit_cells;
+	      
+	        ++pitc;
+	        // topography[n]=std::nextafter(c.score,std::numeric_limits<double>::infinity());
+	        topography[n] = c.score +1e-3 + distr(gen);
+	        pit.emplace(n,topography[n]);
+	      } else
+	        open.emplace(n,topography[n]);
+	    }
+	  }
+	
+	  return topography;
+	}
+	 	
 
 
 };

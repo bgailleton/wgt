@@ -438,7 +438,7 @@ std::vector<size_t> sort_indexes(T &v) {
   // using std::stable_sort instead of std::sort
   // to avoid unnecessary index re-orderings
   // when v contains elements of equal values 
-  std::stable_sort(idx.begin(), idx.end(),
+  std::sort(idx.begin(), idx.end(),
        [&v](size_t i1, size_t i2) {return v[i1] < v[i2];});
 
   return idx;
@@ -466,6 +466,16 @@ pvector<T> format_input(std::vector<T>& in){return pvector<T>(in);}
 
 template<class T>
 pvector<T> format_input(pvector<T>& in){return in;}
+
+template<class T>
+std::vector<T> to_vec(pvector<T>& in)
+{
+	return std::vector<T>(*in.data);
+}
+
+// template<class T>
+// std::vector<T> format_output(std::vector<T>& in){return in;}
+
 // int sort(std::vector<int>& array, int l, int h, int k)
 // {
 //   int mid = l + (h - l) / 2; //Chose middle element as pivot
@@ -493,6 +503,27 @@ pvector<T> format_input(pvector<T>& in){return in;}
 
 
 
+
+class ocarina
+{
+public:
+
+	std::chrono::high_resolution_clock::time_point start,end;
+
+	ocarina(){};
+
+	void tik(){this->start = std::chrono::high_resolution_clock::now();}
+	void tok(std::string message)
+	{
+		this->end = std::chrono::high_resolution_clock::now();
+		std::chrono::duration<double, std::milli> ms_double = this->end - this->start;
+		double timing = ms_double.count();
+		std::cout << message << " took " << timing << " ms" << std::endl;
+	}
+
+
+	
+};
 
 
 

@@ -2,6 +2,13 @@
 #ifndef smgraph_HPP
 #define smgraph_HPP
 
+
+/*
+SMGraph stands for Static Multiple flow Graph.
+*/
+
+
+
 // STL imports
 #include <iostream>
 #include <string>
@@ -56,6 +63,12 @@ public:
 	template<class Neighbourer_t,class topo_t, class out_t>
 	out_t compute_graph(std::string depression_solver, topo_t& ttopography, Neighbourer_t& neighbourer)
 	{
+		
+		ocarina timer;
+
+
+		timer.tik();
+
 		auto topography = format_input(ttopography);
 		add_noise_to_vector(topography,-1e-6,1e-6);
 
@@ -66,8 +79,130 @@ public:
 		this->Sdistance2receivers = std::vector<double >(this->nnodes,-1);
 		
 		std::vector<double> SS(this->nnodes,0.);
-		
+		timer.tok("Initiation");
+
+		timer.tik();
 		neighbourer.build_smgraph_SS_only_SS(topography, this->Sreceivers, this->Sdistance2receivers, SS);
+		timer.tok("Build_SS");
+
+		timer.tik();
+		this->recompute_SF_donors_from_receivers();
+		this->compute_TO_SF_stack_version();
+
+		timer.tok("SS_stuff");
+
+		timer.tik();
+		this->solve_depressions( depression_solver, neighbourer, topography);
+		timer.tok("Depression solver");
+
+		timer.tik();
+
+		std::vector<double> faketopo = to_vec(topography);
+
+		this->compute_TO_SF_stack_version();
+
+		if(depression_solver == "carve")
+		{
+			this->carve_topo(1e-3,neighbourer,faketopo);
+
+		}
+		else if (depression_solver == "fill")
+			this->fill_topo(1e-3,neighbourer,faketopo);
+
+
+		timer.tok("Process topo post depression");
+
+
+		
+		timer.tik();
+		neighbourer.build_smgraph_only_MF(faketopo, this->isrec);
+
+
+
+		this->compute_MF_topological_order_insort(faketopo);
+		
+		timer.tok("MF stuffs");
+
+
+		return format_output(faketopo);
+	}
+
+	template<class Neighbourer_t, class topo_t, class out_t>
+	out_t compute_graph_multi_filled( topo_t& ttopography, Neighbourer_t& neighbourer)
+	{
+		
+		auto topography = format_input(ttopography);
+		ocarina timer;
+		timer.tik();
+
+		// auto topography = format_input(ttopography);
+		add_noise_to_vector(topography,-1e-6,1e-6);
+
+		this->isrec = std::vector<bool>(int(this->nnodes * this->n_neighbours/2), false);
+
+		timer.tik();
+		std::vector<double> faketopo = neighbourer.fill_barne_2014(topography);
+		// add_noise_to_vector(faketopo,-1e-6,1e-6);
+		// timer.tok("filled depression");
+
+		timer.tik();
+		neighbourer.build_smgraph_only_MF(faketopo, this->isrec);
+
+		this->compute_MF_topological_order_insort(faketopo);
+		
+		// timer.tok("MF stuffs");
+
+
+		return format_output(faketopo);
+	}
+
+	template<class Neighbourer_t, class topo_t, class out_t>
+	out_t compute_graph_multi_filled_OMP( topo_t& ttopography, Neighbourer_t& neighbourer)
+	{
+		py::gil_scoped_release release;
+		
+		ocarina timer;
+		timer.tik();
+
+		auto topography = format_input(ttopography);
+		add_noise_to_vector(topography,-1e-6,1e-6);
+
+		this->isrec = std::vector<bool>(int(this->nnodes * this->n_neighbours/2), false);
+
+		// timer.tik();
+		std::vector<double> faketopo = neighbourer.fill_barne_2014(topography);
+		// timer.tok("filled depression");
+
+		// timer.tik();
+		neighbourer.build_smgraph_only_MF_OMP(faketopo, this->isrec);
+
+		this->compute_MF_topological_order_insort(faketopo);
+		
+		// timer.tok("MF stuffs");
+
+		py::gil_scoped_acquire acquire;
+
+		return format_output(faketopo);
+	}
+
+	template<class Neighbourer_t,class topo_t, class out_t>
+	out_t compute_graph_OMP(std::string depression_solver, topo_t& ttopography, Neighbourer_t& neighbourer)
+	{
+		py::gil_scoped_release release;
+		// std::cout << "made it here -2" << std::endl;
+		auto topography = format_input(ttopography);
+		// std::cout << "made it here -1,9" << std::endl;
+		add_noise_to_vector(topography,-1e-6,1e-6);
+		// std::cout << "made it here -1" << std::endl;
+
+		this->isrec = std::vector<bool>(int(this->nnodes * this->n_neighbours/2), false);
+		this->Sreceivers = std::vector<int>(this->nnodes,-1);
+		for(int i=0;i<this->nnodes; ++i)
+			this->Sreceivers[i] = i;
+		this->Sdistance2receivers = std::vector<double >(this->nnodes,-1);
+		
+		std::vector<double> SS(this->nnodes,0.);
+		neighbourer.build_smgraph_SS_only_SS_OMP(topography, this->Sreceivers, this->Sdistance2receivers, SS);
 		this->recompute_SF_donors_from_receivers();
 		this->compute_TO_SF_stack_version();
 
@@ -78,25 +213,18 @@ public:
 
 		if(depression_solver == "carve")
 		{
-			std::cout << "carving" << std::endl;
 			this->carve_topo(1e-3,neighbourer,faketopo);
 
 		}
 		else if (depression_solver == "fill")
 			this->fill_topo(1e-3,neighbourer,faketopo);
 
-		std::cout << "TOPOREC::" << faketopo[497953]  << " TOPONODE::" << faketopo[497951]  << std::endl;
 
-		neighbourer.build_smgraph_only_MF(faketopo, this->isrec);
-		std::cout << "TOPOREC::" << faketopo[497953]  << " TOPONODE::" << faketopo[497951]  << std::endl;
-
-		this->compute_MF_topological_order_insort(faketopo);
-		std::cout << "TOPOREC::" << faketopo[497953]  << " TOPONODE::" << faketopo[497951]  << std::endl;
+		neighbourer.build_smgraph_only_MF_OMP(faketopo, this->isrec);
 		
-
-		std::cout << "TOPOREC::" << faketopo[497953]  << " TOPONODE::" << faketopo[497951]  << std::endl;
-
-
+		this->compute_MF_topological_order_insort(faketopo);
+		py::gil_scoped_acquire acquire;
+		
 		return format_output(faketopo);
 	}
 
@@ -142,14 +270,6 @@ public:
 
 		auto yolo = sort_indexes(topography);
 		this->stack = std::move(yolo);
-
-		for(int i =1; i< this->nnodes; ++i)
-		{
-			int node = this->stack[i];
-			if(topography[node]< topography[this->stack[i-1]])
-				std::cout << "WARNING FAKE STACK" << std::endl;
-
-		}
 
 	}
 
@@ -328,6 +448,87 @@ public:
 		{
 			if(this->isrec[i_r] == false)
 				recs.emplace_back(neighbourer.get_topright_index(i));
+		}
+		return recs;
+
+	}
+
+	template<class Neighbourer_t>
+	std::vector<std::pair<int,int> > get_receiver_link_indices(int i, Neighbourer_t& neighbourer)
+	{
+		std::vector<std::pair<int,int>> recs; recs.reserve(8);
+
+		int i_r = neighbourer.get_id_right_SMG(i);
+		if(i_r >=0 && i_r < neighbourer.nnodes * 4)
+		{
+			int ti = neighbourer.get_right_index(i);
+			if(this->isrec[i_r] && ti >=0 && ti<this->nnodes)
+			{
+				recs.emplace_back(std::pair<int,int>{ti,i_r});
+			}
+		}
+		i_r = neighbourer.get_id_bottomright_SMG(i);
+		if(i_r >=0 && i_r < neighbourer.nnodes * 4)
+		{
+			int ti = neighbourer.get_bottomright_index(i);
+			if(this->isrec[i_r] && ti >=0 && ti<this->nnodes)
+			{
+				recs.emplace_back(std::pair<int,int>{ti,i_r});
+			}
+		}
+		i_r = neighbourer.get_id_bottom_SMG(i);
+		if(i_r >=0 && i_r < neighbourer.nnodes * 4)
+		{
+			int ti = neighbourer.get_bottom_index(i);
+			if(this->isrec[i_r] && ti >=0 && ti<this->nnodes)
+			{
+				recs.emplace_back(std::pair<int,int>{ti,i_r});
+			}
+		}
+		i_r = neighbourer.get_id_bottomleft_SMG(i);
+		if(i_r >=0 && i_r < neighbourer.nnodes * 4)
+		{
+			int ti = neighbourer.get_bottomleft_index(i);
+			if(this->isrec[i_r] && ti >=0 && ti<this->nnodes)
+			{
+				recs.emplace_back(std::pair<int,int>{ti,i_r});
+			}
+		}
+		i_r = neighbourer.get_id_left_SMG(i);
+		if(i_r >=0 && i_r < neighbourer.nnodes * 4)
+		{
+			int ti = neighbourer.get_left_index(i);
+			if(this->isrec[i_r] == false && ti >=0 && ti<this->nnodes)
+			{
+				recs.emplace_back(std::pair<int,int>{ti,i_r});
+			}
+		}
+		i_r = neighbourer.get_id_topleft_SMG(i);
+		if(i_r >=0 && i_r < neighbourer.nnodes * 4)
+		{
+			int ti = neighbourer.get_topleft_index(i);
+			if(this->isrec[i_r] == false && ti >=0 && ti<this->nnodes)
+			{
+				recs.emplace_back(std::pair<int,int>{ti,i_r});
+			}
+		}
+		i_r = neighbourer.get_id_top_SMG(i);
+		if(i_r >=0 && i_r < neighbourer.nnodes * 4)
+		{
+			int ti = neighbourer.get_top_index(i);
+			if(this->isrec[i_r] == false && ti >=0 && ti<this->nnodes)
+			{
+				recs.emplace_back(std::pair<int,int>{ti,i_r});
+			}
+		}
+		i_r = neighbourer.get_id_topright_SMG(i);
+		if(i_r >=0 && i_r < neighbourer.nnodes * 4)
+		{
+			int ti = neighbourer.get_topright_index(i);
+			if(this->isrec[i_r] == false && ti >=0 && ti<this->nnodes)
+			{
+				recs.emplace_back(std::pair<int,int>{ti,i_r});
+			}
 		}
 		return recs;
 

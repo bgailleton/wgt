@@ -20,6 +20,8 @@
 #include<stdlib.h>
 #include<ctime>
 
+#include "chonkutils.hpp"
+
 // If compiling for web (using emscripten)
 #ifdef __EMSCRIPTEN__
 	#include <emscripten.h>
@@ -82,10 +84,22 @@ public:
 
 template<class T>
 py::array format_output(std::vector<T>& yolo){return py::array(yolo.size(), yolo.data());}
+template<class T>
+py::array format_output(pvector<T>& yolo){return py::array(yolo.data->size(), yolo.data->data());}
 
 template<class T>
 std::vector<T> to_vec(numvec<T>& in)
 {
+	std::vector<T> out(in.size());
+	for(int i=0;i<in.size(); ++i)
+		out[i] = in[i];
+	return out;
+}
+
+template<class T>
+std::vector<T> to_vec(py::array_t<T,1>& tin)
+{
+	numvec<double> in(tin);
 	std::vector<T> out(in.size());
 	for(int i=0;i<in.size(); ++i)
 		out[i] = in[i];
