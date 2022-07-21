@@ -5,6 +5,16 @@
 
 /*
 SMGraph stands for Static Multiple flow Graph.
+It is a very memory efficient way to represent a graph and manipulate it.
+It stores less informations than a fully fledged MGraph and therefore needs more processing to 
+retrieve the same level of information (e.g. donors, distances, ...)
+But is way more efficient in term of building/updating speed and extremely low in memory usage
+It is useful for different cases, for example when updating and building the graph needs to be 
+done multiple times and represents a significant part of the computation time (e.g. LEMs); or cases where
+memory use becomes limitting.
+It has a limitation though, the nodes need a fixed and even number of neighbours.
+
+B.G. 2022
 */
 
 
@@ -35,28 +45,37 @@ SMGraph stands for Static Multiple flow Graph.
 #include "cordonnier_versatile_2019.hpp"
 // -> lightweigth numpy export
 #include "npy.hpp"
-
+// -> The neighbourer classes
 #include "neighbourer.hpp"
+// -> Manages operability with numpy types
 #include "numvec.hpp"
-
-
 
 
 
 class SMgraph
 {
+
+// Everything goes public, more straighforward
 public:
 
-
+	// Number of nodes in the graph
 	int nnodes;
+	// Number of neighbours by nodes
 	int n_neighbours;
+	// bool vector for each link: true is receiver direction and false is donor
+	// The meaning of the index depends on the neighbourer
 	std::vector<bool> isrec;
+	// Single graph receivers (optional)
 	std::vector<int> Sreceivers;
+	// Topological order and Single graph topological order (optional)
 	std::vector<size_t> stack, Sstack;
+	// Single graph donor (optional)
 	std::vector<std::vector<int> > Sdonors;
+	// Single graph distance to receivers
 	std::vector<double> Sdistance2receivers;
 
 
+	// default constructor
 	SMgraph(){};
 	SMgraph(int nnodes, int n_neighbours){this->nnodes = nnodes; this->n_neighbours = n_neighbours ;}
 

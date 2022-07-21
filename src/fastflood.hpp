@@ -106,14 +106,13 @@ out_t run_multi_fastflood_static_old(MGraph<T>& graph, Neighbourer_t& neighboure
 }
 
 template<class Neighbourer_t,class topo_t, class T, class out_t>
-out_t run_multi_fastflood_static(SMgraph& graph, Neighbourer_t& neighbourer, topo_t& thw, topo_t& ttopography, T manning, topo_t& tprecipitations, T dt)
+out_t run_multi_fastflood_static(SMgraph& graph, Neighbourer_t& neighbourer, topo_t& thw, topo_t& ttopography, T manning, topo_t& tprecipitations)
 {
 	// init the fluxes
 	auto hw = format_input(thw);
 	auto topography = format_input(ttopography);
 	auto precipitations = format_input(tprecipitations);
 	std::vector<double> diff(hw.size(),0.), Qin(hw.size(),0.), sumslopes(hw.size(),0), Sw(graph.isrec.size(),1e-5);
-	std::vector<int> nrecs(hw.size(),0);
 
 	// std::cout << "FF::DEBUG::1" << std::endl;
 	for(int i = 0; i< neighbourer.nnodes; ++i)
@@ -174,24 +173,6 @@ out_t run_multi_fastflood_static(SMgraph& graph, Neighbourer_t& neighbourer, top
 
 	}
 
-	// for(auto v:Sw)
-	// {
-	// 	if(std::isfinite(v) == false)
-	// 	{
-	// 		std::cout << neighbourer.dx << "|" << neighbourer.dy << "|" << neighbourer.dxy << std::endl;
-	// 		throw std::runtime_error("YOLOSw");
-	// 	}
-	// }
-
-	// for(auto v:sumslopes)
-	// {
-	// 	if(std::isfinite(v) == false || v<=0)
-	// 	{
-	// 		std::cout << v << std::endl;
-	// 		throw std::runtime_error("YOLOSumsloe[s");
-	// 	}
-	// }
-	// std::cout << "FF::DEBUG::2" << std::endl;
 
 	for(int i = graph.nnodes-1; i>=0; --i)
 	{
@@ -208,6 +189,7 @@ out_t run_multi_fastflood_static(SMgraph& graph, Neighbourer_t& neighbourer, top
 
 		auto recs = graph.get_receiver_link_indices(node,neighbourer);
 		// std::cout << "FF::DEBUG::2.5" << std::endl;
+		double maxslope = 1e-6;
 		double sumst = 0;
 		for(auto rec:recs)
 		{
@@ -215,47 +197,18 @@ out_t run_multi_fastflood_static(SMgraph& graph, Neighbourer_t& neighbourer, top
 			if(rec.first < 0 || rec.first >= neighbourer.nnodes)
 				continue;
 
-			Qin[rec.first] += Qin[node] * Sw[rec.second]/sumslopes[node];
+			double weight = Sw[rec.second]/sumslopes[node];
 
-			nrecs[node] += 1;
-			sumst+= Sw[rec.second]/sumslopes[node];
+			Qin[rec.first] += Qin[node] * weight;
+			sumst += std::pow(Sw[rec.second],2); // POW 2 because Sw it is already sqrted
+			if(Sw[rec.second] > maxslope)
+				maxslope = Sw[rec.second];
 		}
-		// if(std::abs(sumst - 1) > 1e-3)
-		// 	std::cout << "WABUL>>>" << sumst << std::endl;
-		// std::cout << "FF::DEBUG::2.6" << std::endl;
+
+		if(neighbourer.is_active(node))
+			diff[node] =  (Qin[node] - 1/manning * 0.5 * std::pow(hw[node],5/3) * sumst/maxslope)/neighbourer.cellarea; // Note that smst is the sum of slopes and maxslope is squarerooted
 
 	}
-
-	// for(auto v:Qin)
-	// {
-	// 	if(std::isfinite(v) == false)
-	// 		throw std::runtime_error("YOLOQin");
-	// }
-
-	// std::cout << "FF::DEBUG::3" << std::endl;
-
-
-	for(int i=0; i<neighbourer.nnodes; ++i)
-	{
-		if(neighbourer.is_active(i) == false)
-			continue;
-
-		if(nrecs[i] == 0)
-		{
-			std::cout << "happens" << std::endl;
-			diff[i] = Qin[i];
-		}
-		else
-			diff[i] =  Qin[i] - 1/manning * std::pow(hw[i],5/3) * sumslopes[i]/nrecs[i];
-	}
-
-
-	// for(auto v:diff)
-	// {
-	// 	if(std::isfinite(v) == false)
-	// 		throw std::runtime_error("YOLOdiff");
-	// }
-	// std::cout << "FF::DEBUG::4" << std::endl;
 
 	return format_output(diff);
 
