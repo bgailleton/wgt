@@ -45,8 +45,11 @@ class FastFlood(object):
 		# Manning coefficient
 		self.manning = 0.033
 
-		# Holds the divergence of Q (calculated in the c++ side)
-		self.diff = None
+		# Holds the divergence of Q (calculated inplace in the c++ side, but init on the python side)
+		self.Qwin = np.zeros_like(self.dem.data)
+		self.Qwout = np.zeros_like(self.dem.data)
+		self._Sw = None
+		self._susmt = np.zeros_like(self.dem.data)
 
 		# Variables helping with animated visualisations 
 		self.fig = None
@@ -64,12 +67,19 @@ class FastFlood(object):
 		topohw = self.dem.data + self.hw
 		# The graph computes receivers and fill the topography
 		filled = self.graph.compute_graph_multi_filled(topohw,self.dem.neighbourer)
+		# initilising internal array ifnot done yet (it needs the graph to have been calculated at least once so it is unsafe to do it at build time)
+		if(self._Sw is None):
+			self._Sw = np.zeros(self.graph.get_rec_array_size())
+
 		# A first correction of water height by filling the local minima 
 		self.hw += (filled - topohw)
+		self._Sw.fill(1e-6)
+		self._susmt.fill(1e-6)
+		cw.compute_Sw_sumslopes(self.graph, self.dem.neighbourer, self.hw, self.dem.data, self._Sw, self._susmt)
 		# Calculating the difference of water height
-		self.diff = cw.run_multi_fastflood_static(self.graph, self.dem.neighbourer, self.hw, self.dem.data, self.manning, self.precipitations)
+		cw.run_multi_fastflood_static(self.graph, self.dem.neighbourer, self.hw, self.dem.data, self.manning, self.precipitations,self.Qwin,self.Qwout, self._Sw, self._susmt)
 		# Applying the diff to the water height
-		self.hw += self.diff * dt
+		self.hw += (self.Qwin-self.Qwout)/(self.dem.dx * self.dem.dy) * dt
 		# Just making sure we do not have negative water height (not possible)
 		self.hw[self.hw<0] = 0
 		# Done
