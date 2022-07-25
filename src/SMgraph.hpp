@@ -177,6 +177,37 @@ public:
 		return format_output(faketopo);
 	}
 
+	template<class Neighbourer_t, class topo_t, class out_t>
+	out_t update_graph_multi_filled( topo_t& ttopography, Neighbourer_t& neighbourer)
+	{
+		
+		auto topography = format_input(ttopography);
+		ocarina timer;
+		timer.tik();
+
+		// auto topography = format_input(ttopography);
+		add_noise_to_vector(topography,-1e-6,1e-6);
+
+		// this->isrec = std::vector<bool>(int(this->nnodes * this->n_neighbours/2), false);
+
+		timer.tik();
+		// std::vector<double> faketopo = neighbourer.fill_barne_2014(topography);
+		std::vector<double> faketopo = neighbourer.PriorityFlood_Wei2018(topography);
+
+		// add_noise_to_vector(faketopo,-1e-6,1e-6);
+		// timer.tok("filled depression");
+
+		timer.tik();
+		neighbourer.build_smgraph_only_MF(faketopo, this->isrec);
+
+		this->compute_MF_topological_order_insort(faketopo);
+		
+		// timer.tok("MF stuffs");
+
+
+		return format_output(faketopo);
+	}
+
 
 	template<class Neighbourer_t, class topo_t, class out_t>
 	out_t compute_graph_multi_filled_old( topo_t& ttopography, Neighbourer_t& neighbourer)
