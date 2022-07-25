@@ -2068,14 +2068,14 @@ public:
 		this->compute_basins_and_pits(neighbourer,topography,Sreceivers,Sdistance2receivers, stack);
 		auto t2 = high_resolution_clock::now();
 		duration<double, std::milli> ms_double = t2 - t1;
-		std::cout << "Computing basins and pits -> " << ms_double.count() << " milliseconds" << std::endl;;
+		// std::cout << "Computing basins and pits -> " << ms_double.count() << " milliseconds" << std::endl;;
 		if(this->npits > 0)
 		{
 			t1 = high_resolution_clock::now();
 			this->preprocess_flowrouting(neighbourer,topography,Sreceivers,Sdistance2receivers);
 			t2 = high_resolution_clock::now();
 			ms_double = t2 - t1;
-			std::cout << "Preprocess_flowrouting -> " << ms_double.count() << " milliseconds" << std::endl;;
+			// std::cout << "Preprocess_flowrouting -> " << ms_double.count() << " milliseconds" << std::endl;;
 			
 		}
 	}
@@ -2087,17 +2087,17 @@ public:
 		this->_compute_links(neighbourer,topography,Sreceivers,Sdistance2receivers);
 		auto t2 = high_resolution_clock::now();
 		duration<double, std::milli> ms_double = t2 - t1;
-		std::cout << "_compute_links --> " << ms_double.count() << " milliseconds" << std::endl;;
+		// std::cout << "_compute_links --> " << ms_double.count() << " milliseconds" << std::endl;;
 		t1 = high_resolution_clock::now();
 		this->_compute_mst_kruskal(neighbourer,topography,Sreceivers,Sdistance2receivers);
 		t2 = high_resolution_clock::now();
 		ms_double = t2 - t1;
-		std::cout << "_compute_mst_kruskal --> " << ms_double.count() << " milliseconds" << std::endl;;
+		// std::cout << "_compute_mst_kruskal --> " << ms_double.count() << " milliseconds" << std::endl;;
 		t1 = high_resolution_clock::now();
 		this->_orient_basin_tree(neighbourer,topography,Sreceivers,Sdistance2receivers);
 		t2 = high_resolution_clock::now();
 		ms_double = t2 - t1;
-		std::cout << "_orient_basin_tree --> " << ms_double.count() << " milliseconds" << std::endl;;
+		// std::cout << "_orient_basin_tree --> " << ms_double.count() << " milliseconds" << std::endl;;
 	}
 
 	// Uses the stack structure to build a quick basin array

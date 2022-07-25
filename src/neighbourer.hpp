@@ -48,6 +48,9 @@
 #endif
 
 
+	using PQ_i_d =  std::priority_queue< PQ_helper<int,double>, std::vector<PQ_helper<int,double> >, std::greater<PQ_helper<int,double> > >;
+
+
 
 template<class T>
 class D8Neighbourer
@@ -94,6 +97,8 @@ public:
 	// Xs and Ys are vectors of nx and ny size converting row to y and col to X
 	// Extents holds the cxmin,xmax,ymin,ymax (extent is an option in matplotlib imshow plots)
 	std::vector<T> Xs,Ys, extents;
+
+	easyRand randu;
 
 	D8Neighbourer(){};
 
@@ -1470,6 +1475,23 @@ public:
 	}
 
 
+	// Some of my algorithm are adapted from richdem and require iterating through neighbours the way they do
+	// starting from left and going clockwise around the node
+	std::vector<int> get_neighbours_only_id_richdemlike(int i)
+	{
+		std::vector<int> neighs;neighs.reserve(8);
+		neighs.emplace_back(this->get_left_index(i));
+		neighs.emplace_back(this->get_topleft_index(i));
+		neighs.emplace_back(this->get_top_index(i));
+		neighs.emplace_back(this->get_topright_index(i));
+		neighs.emplace_back(this->get_right_index(i));
+		neighs.emplace_back(this->get_bottomright_index(i));
+		neighs.emplace_back(this->get_bottom_index(i));
+		neighs.emplace_back(this->get_bottomleft_index(i));
+		return neighs;
+	}
+
+
 
 
 
@@ -1639,7 +1661,7 @@ public:
 
 		std::vector<double> topography = to_vec(ttopography);
 
-	  std::priority_queue< PQ_helper<int,double>, std::vector<PQ_helper<int,double> >, std::greater<PQ_helper<int,double> > > open;
+	  PQ_i_d open;
 	  std::queue<PQ_helper<int,double> > pit;
 
 	  uint64_t processed_cells = 0;
@@ -1707,6 +1729,223 @@ public:
 	    }
 	  }
 	
+	  return topography;
+	}
+
+
+	template<class topo_t>
+	void InitPriorityQue(
+	  topo_t& topography,
+	  std::vector<bool>& flag,
+	  PQ_i_d& priorityQueue
+	)
+	{
+
+	  std::queue<PQ_helper<int,double> > depressionQue;
+
+	  // push border cells into the PQ
+	  for(int i=0; i < this->nnodes; ++i)
+	  {
+	    if (flag[i]) continue;
+
+	    if (this->can_flow_even_go_there(i) == false) 
+	    {
+	      flag[i]=true;
+	      auto neighs = this->get_neighbours_only_id(i);
+	      for (auto n:neighs)
+	      {
+	        if (flag[n])
+	          continue;
+	        if (this->can_flow_even_go_there(n))
+	        {
+	          priorityQueue.emplace(n,topography[n]);
+	          flag[n]=true;
+	        }
+	      }
+	    } 
+	    else if(this->can_flow_out_there(i))
+	    {
+	      //on the DEM border
+	      priorityQueue.emplace(i,topography[i]);
+	      flag[i]=true;
+	    }
+	  }
+	}
+
+
+
+	template<class topo_t>
+	void ProcessTraceQue(
+	  topo_t& topography,
+	  std::vector<bool>& flag,
+	  std::queue<PQ_helper<int,double> >& traceQueue,
+	  PQ_i_d& priorityQueue
+	)
+	{
+	  std::queue<PQ_helper<int,double>  > potentialQueue;
+	  int indexThreshold=2;  //index threshold, default to 2
+	  while (!traceQueue.empty())
+	  {
+	    const auto node = traceQueue.front();
+	    traceQueue.pop();
+
+	    bool Mask[5][5]={{false},{false},{false},{false},{false}};
+	    
+	    auto neighs = this->get_neighbours_only_id(node.node);
+	    for (auto n: neighs)
+	    {
+
+	      if(flag[n])
+	        continue;
+
+	      if (topography[n] > node.score)
+	      {
+	        traceQueue.emplace(n, topography[n]);
+	        flag[n]=true;
+	      } 
+	      else 
+	      {
+	        //initialize all masks as false
+	        bool have_spill_path_or_lower_spill_outlet=false; //whether cell n has a spill path or a lower spill outlet than node if n is a depression cell
+	        auto nneighs = this->get_neighbours_only_id_richdemlike(n);
+	        int row,col; this->rowcol_from_node_id(node.node,row,col);
+	        int nrow,ncol; this->rowcol_from_node_id(n,nrow,ncol);
+	        int incr=0;
+	        for(auto nn:nneighs)
+	        {
+	        	++incr;
+	        	// Checking node validity
+	        	if(nn<0 || nn>= this->nnodes)
+	        		continue;
+
+	        	int nnrow,nncol;
+	        	this->rowcol_from_node_id(nn,nnrow,nncol);
+	          if( (Mask[nnrow-row+2][nncol-col+2]) || (flag[nn] && topography[nn] < node.score) )
+	          {
+	            Mask[nrow-row+2][ncol-col+2]=true;
+	            have_spill_path_or_lower_spill_outlet=true;
+	            break;
+	          }
+	        }
+
+	        if(!have_spill_path_or_lower_spill_outlet)
+	        {
+	          if (incr<indexThreshold) potentialQueue.push(node);
+	          else
+	            priorityQueue.push(node);
+	          break; // make sure node is not pushed twice into PQ
+	        }
+	      }
+	    }//end of for loop
+	  }
+
+	  while (!potentialQueue.empty())
+	  {
+	    const auto node = potentialQueue.front();
+	    potentialQueue.pop();
+
+	    //first case
+	    auto neigh = this->get_neighbours_only_id_richdemlike(node.node);
+	    int incr = 0;
+	    for (auto n:neigh)
+	    {
+	    	++incr;
+
+	      if(flag[n])
+	        continue;
+
+	      priorityQueue.push(node);
+	      break;
+	    }
+	  }
+	}
+
+
+
+	template<class topo_t>
+	void ProcessPit(
+	  topo_t& topography,
+	  std::vector<bool>& flag,
+	  std::queue<PQ_helper<int,double> >& depressionQue,
+	  std::queue<PQ_helper<int,double> >& traceQueue
+	)
+	{
+	  while (!depressionQue.empty())
+	  {
+	    auto node = depressionQue.front();
+	    depressionQue.pop();
+	    auto neigh = this->get_neighbours_only_id(node.node);
+
+	    for (auto n: neigh)
+	    {
+
+	      if (flag[n])
+	        continue;
+
+	      const auto iSpill = topography[n];
+	      if (iSpill > node.score)
+	      { // Dlope cell
+	        flag[n]=true;
+	        traceQueue.emplace(n,iSpill);
+	        continue;
+	      }
+
+	      // Depression cell
+	      flag[n] = true;
+	      topography[n] = node.score + 1e-3 + 1e-6 * this->randu.get();
+	      depressionQue.emplace(n,topography[n]);
+	    }
+	  }
+	}
+
+
+
+	template<class topo_t>
+	std::vector<double> PriorityFlood_Wei2018(topo_t &ttopography)
+	{
+	  std::queue<PQ_helper<int,double> > traceQueue;
+	  std::queue<PQ_helper<int,double> > depressionQue;
+
+	  std::vector<bool> flag(this->nnodes,false);
+	  std::vector<double> topography = to_vec(ttopography);
+
+	  PQ_i_d priorityQueue;
+
+	  this->InitPriorityQue(topography,flag,priorityQueue);
+
+	  while (!priorityQueue.empty())
+	  {
+	    const auto tmpNode = priorityQueue.top();
+	    priorityQueue.pop();
+
+	    auto neigh = this->get_neighbours_only_id(tmpNode.node);
+
+	    for(auto n:neigh)
+	    {
+
+	      if(flag[n])
+	        continue;
+
+	      auto iSpill = topography[n];
+
+	      if (iSpill <= tmpNode.score)
+	      {
+	        //depression cell
+	        topography[n] = tmpNode.score + 1e-3 + 1e-6 * this->randu.get();
+	        flag[n] = true;
+	        depressionQue.emplace(n,topography[n]);
+	        this->ProcessPit(topography,flag,depressionQue,traceQueue);
+	      } 
+	      else 
+	      {
+	        //slope cell
+	        flag[n] = true;
+	        traceQueue.emplace(n,iSpill);
+	      }
+	      ProcessTraceQue(topography,flag,traceQueue,priorityQueue);
+	    }
+	  }
+
 	  return topography;
 	}
 	 	

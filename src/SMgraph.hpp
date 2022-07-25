@@ -98,21 +98,21 @@ public:
 		this->Sdistance2receivers = std::vector<double >(this->nnodes,-1);
 		
 		std::vector<double> SS(this->nnodes,0.);
-		timer.tok("Initiation");
+		// timer.tok("Initiation");
 
 		timer.tik();
 		neighbourer.build_smgraph_SS_only_SS(topography, this->Sreceivers, this->Sdistance2receivers, SS);
-		timer.tok("Build_SS");
+		// timer.tok("Build_SS");
 
 		timer.tik();
 		this->recompute_SF_donors_from_receivers();
 		this->compute_TO_SF_stack_version();
 
-		timer.tok("SS_stuff");
+		// timer.tok("SS_stuff");
 
 		timer.tik();
 		this->solve_depressions( depression_solver, neighbourer, topography);
-		timer.tok("Depression solver");
+		// timer.tok("Depression solver");
 
 		timer.tik();
 
@@ -129,7 +129,7 @@ public:
 			this->fill_topo(1e-3,neighbourer,faketopo);
 
 
-		timer.tok("Process topo post depression");
+		// timer.tok("Process topo post depression");
 
 
 		
@@ -140,7 +140,7 @@ public:
 
 		this->compute_MF_topological_order_insort(faketopo);
 		
-		timer.tok("MF stuffs");
+		// timer.tok("MF stuffs");
 
 
 		return format_output(faketopo);
@@ -160,7 +160,9 @@ public:
 		this->isrec = std::vector<bool>(int(this->nnodes * this->n_neighbours/2), false);
 
 		timer.tik();
-		std::vector<double> faketopo = neighbourer.fill_barne_2014(topography);
+		// std::vector<double> faketopo = neighbourer.fill_barne_2014(topography);
+		std::vector<double> faketopo = neighbourer.PriorityFlood_Wei2018(topography);
+
 		// add_noise_to_vector(faketopo,-1e-6,1e-6);
 		// timer.tok("filled depression");
 
@@ -174,6 +176,40 @@ public:
 
 		return format_output(faketopo);
 	}
+
+
+	template<class Neighbourer_t, class topo_t, class out_t>
+	out_t compute_graph_multi_filled_old( topo_t& ttopography, Neighbourer_t& neighbourer)
+	{
+		
+		auto topography = format_input(ttopography);
+		ocarina timer;
+		timer.tik();
+
+		// auto topography = format_input(ttopography);
+		add_noise_to_vector(topography,-1e-6,1e-6);
+
+		this->isrec = std::vector<bool>(int(this->nnodes * this->n_neighbours/2), false);
+
+		timer.tik();
+		std::vector<double> faketopo = neighbourer.fill_barne_2014(topography);
+		// std::vector<double> faketopo = neighbourer.PriorityFlood_Wei2018(topography);
+		
+		// add_noise_to_vector(faketopo,-1e-6,1e-6);
+		// timer.tok("filled depression");
+
+		timer.tik();
+		neighbourer.build_smgraph_only_MF(faketopo, this->isrec);
+
+		this->compute_MF_topological_order_insort(faketopo);
+		
+		// timer.tok("MF stuffs");
+
+
+		return format_output(faketopo);
+	}
+
+
 
 	template<class Neighbourer_t, class topo_t, class out_t>
 	out_t compute_graph_multi_filled_OMP( topo_t& ttopography, Neighbourer_t& neighbourer)
@@ -617,7 +653,6 @@ public:
 	}
 
 
-
 	template<class Neighbourer_t>
 	std::vector<int> get_rowcol_Sreceivers(int row, int col,  Neighbourer_t& neighbourer)
 	{
@@ -663,6 +698,9 @@ public:
 
 
 	}
+
+
+	int get_rec_array_size(){return int(this->isrec.size());}
 
 
 

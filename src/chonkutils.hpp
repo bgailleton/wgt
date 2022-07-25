@@ -501,6 +501,30 @@ std::vector<T> to_vec(pvector<T>& in)
 // }
 
 
+class easyRand
+{
+public:
+	std::random_device rd; // obtain a random number from hardware
+  std::mt19937 gen; // seed the generator
+  std::uniform_real_distribution<> distr; // define the range
+
+  easyRand()
+  {
+		std::random_device rd;
+	  this->gen = std::mt19937(rd()); // seed the generator
+	  this->distr = std::uniform_real_distribution<>(0, 1); // define the range
+  }
+
+  easyRand(double min, double max)
+  {
+		std::random_device rd;
+	  this->gen = std::mt19937(rd()); // seed the generator
+	  this->distr = std::uniform_real_distribution<>(min, max); // define the range
+  }
+
+  double get(){return this->distr(this->gen);}
+};
+
 
 
 
