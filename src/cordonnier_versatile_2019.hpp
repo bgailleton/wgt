@@ -260,7 +260,7 @@ class UnionFindv3
 		std::vector<int> _parent;
 		std::vector<int> _rank;
 		std::vector<bool> _open;
-		LMRerouter<n_t,dist_t,Neighbourer_t,topo_t> *cod;
+		LM_t *cod;
 
 
 };
@@ -2580,7 +2580,19 @@ public:
 
 };
 
+// Only for pairs of std::hash-able types for simplicity.
+// You can of course template this struct to allow other hash functions
+struct pair_hash {
+    template <class T1, class T2>
+    std::size_t operator () (const std::pair<T1,T2> &p) const {
+        auto h1 = std::hash<T1>{}(p.first);
+        auto h2 = std::hash<T2>{}(p.second);
 
+        // Mainly for demonstration purposes, i.e. works but is overly simple
+        // In the real world, use sth. like boost.hash_combine
+        return h1 ^ h2;  
+    }
+};
 
 
 
@@ -2604,13 +2616,13 @@ public:
 
 
 	//
-	std::unordered_map<std::pair<int,int> , double> edges;
-	std::unordered_map<std::pair<int,int> , std::pair<int,int> > edges_nodes;
+	std::unordered_map<std::pair<int,int> , double, pair_hash> edges;
+	std::unordered_map<std::pair<int,int> , std::pair<int,int>, pair_hash > edges_nodes;
 
 	LMRerouter_II(){};
 
 	template<class topo_t, class Neighbourer_t>
-	bool run(std::string method, topo_t& topography, Neighbourer_t& neighbourer, std::vector<int>& Sreceivers, std::vector<int>& Sstack, std::vector<int>& links)
+	bool run(std::string method, topo_t& topography, Neighbourer_t& neighbourer, std::vector<int>& Sreceivers, std::vector<size_t>& Sstack, std::vector<int>& links)
 	{
 		
 		this->nbas = -1;
@@ -2618,7 +2630,7 @@ public:
 		int nbas2solve = 0;
 		for(int i=0; i<neighbourer.nnodes; ++i)
 		{
-			int node = Sstack[i];
+			size_t node = Sstack[i];
 			if(Sreceivers[node] == node)
 			{
 				++nbas;
@@ -2686,17 +2698,17 @@ public:
 		std::vector<PQ_helper<std::pair<int,int>, double > > basinlinks;basinlinks.reserve(nlinks);
 		for(auto it: this->edges)
 		{
-			basinlinks.emplace_back(PQ_helper<std::pair<int,int>, double >(it->first,it->second));
+			basinlinks.emplace_back(PQ_helper<std::pair<int,int>, double >(it.first,it.second));
 		}
 
 		std::sort(basinlinks.begin(), basinlinks.end());
 		std::vector<bool> isactive(basinlinks.size(), false);
 
-		UnionFindv3<int, double, Neighbourer_t,topo_t, LMRerouter_II> uf(this->nbasins, (*this) );
+		UnionFindv3<int, double, Neighbourer_t,topo_t, LMRerouter_II> uf(this->nbas, (*this) );
 
-		this->receivers = std::vector<int>(this->nbasins);
-		this->receivers_node = std::vector<std::pair<int,int> >(this->nbasins);
-		for(int i =0; i<this->nbasins; ++i)
+		this->receivers = std::vector<int>(this->nbas);
+		this->receivers_node = std::vector<std::pair<int,int> >(this->nbas);
+		for(int i =0; i<this->nbas; ++i)
 			this->receivers[i] = i;
 
 
@@ -2715,7 +2727,7 @@ public:
 
 				if(uf._open[fb0] && uf._open[fb1])
 					continue;
-				// std::cout << "GOUGN::" << b0 << "|" << b1 << "|" << this->nbasins << std::endl;
+				// std::cout << "GOUGN::" << b0 << "|" << b1 << "|" << this->nbas << std::endl;
 				
 				uf.Union(b0, b1);
 				isactive[i] = true;
@@ -2728,7 +2740,7 @@ public:
 				else if(this->is_open_basin[basinlinks[i].node.second])
 				{
 					this->receivers[basinlinks[i].node.first] = basinlinks[i].node.second;
-					this->receivers_node[basinlinks[i].node.first] = std::pair<int,int>{this->edges_nodes[basinlinks[i].node].fist ,this->edges_nodes[basinlinks[i].node].second};
+					this->receivers_node[basinlinks[i].node.first] = std::pair<int,int>{this->edges_nodes[basinlinks[i].node].first ,this->edges_nodes[basinlinks[i].node].second};
 					this->is_open_basin[basinlinks[i].node.first] = true;
 				}
 			}
@@ -2761,8 +2773,8 @@ public:
 		}
 
 
-		this->donors = std::vector<std::vector<int> >(this->nbasins, std::vector<int>());
-		for(int i=0; i<this->nbasins; ++i)
+		this->donors = std::vector<std::vector<int> >(this->nbas, std::vector<int>());
+		for(int i=0; i<this->nbas; ++i)
 		{
 			if(this->receivers[i] != i)
 			{
@@ -2774,7 +2786,7 @@ public:
 
 		if(method == "carve")
 		{
-			for(int i =  this->nbasins-1; i>=0; ++i)
+			for(int i =  this->nbas-1; i>=0; ++i)
 			{
 				int bas = this->stack[i];
 				if(this->is_open_basin[bas])
@@ -2805,13 +2817,13 @@ public:
 		// Initialising the stack
 		this->stack.clear();
 		// reserving the amount of stuff
-		this->stack.reserve(this->nbasins);
+		this->stack.reserve(this->nbas);
 
 		// The stack container helper
 		std::stack<int, std::vector<int> > stackhelper;
-		// std::vector<bool> isdone(this->nbasins,false);
+		// std::vector<bool> isdone(this->nbas,false);
 		// going through all the nodes
-		for(int i=0; i<this->nbasins; ++i)
+		for(int i=0; i<this->nbas; ++i)
 		{
 			// if they are base level I include them in the stack
 			if(this->receivers[i] == i)

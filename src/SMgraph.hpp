@@ -114,9 +114,9 @@ public:
 	template<class Neighbourer_t,class topo_t>
 	void update_some_Mrecs(topo_t& topography, Neighbourer_t& neighbourer, std::vector<int>& some)
 	{
-		for(size_t j = 0; j<this->some.size(); ++j)
+		for(size_t j = 0; j<some.size(); ++j)
 		{
-			int node = some[i];
+			int node = some[j];
 			auto ilinks = neighbourer.get_ilinks_from_node(node);
 			for(auto i: ilinks)
 			{
@@ -125,7 +125,6 @@ public:
 				
 				if(from < 0)
 					continue;
-				if()
 
 				if(topography[from] > topography[to])
 					this->isrec[i] = true;
@@ -148,13 +147,13 @@ public:
 
 			double slope = (topography[from] - topography[to])/neighbourer.get_dx_from_isrec_idx(i); 
 
-			if(slopes>0)
+			if(slope>0)
 			{
 				this->isrec[i] = true;
 				if(this->SS[from]<slope)
 				{
 					this->Sreceivers[from] = to;
-					this->SS[from] = slope
+					this->SS[from] = slope;
 				}
 			}
 			else
@@ -164,7 +163,7 @@ public:
 				if(this->SS[to]<slope)
 				{
 					this->Sreceivers[to] = from;
-					this->SS[to] = slope
+					this->SS[to] = slope;
 				}
 			}
 
@@ -191,6 +190,7 @@ public:
 		this->compute_TO_SF_stack_version();
 		LMRerouter_II depsolver;
 		bool need_recompute = depsolver.run(depression_solver, topography, neighbourer, this->Sreceivers, this->Sstack, this->links);
+		
 		if(need_recompute)
 		{
 			this->recompute_SF_donors_from_receivers();
@@ -913,6 +913,37 @@ public:
 			}
 
 		}
+	}
+
+	/// this function enforces minimal slope 
+	template<class Neighbourer_t, class topo_t>
+	std::vector<int> carve_topo_v2(double slope, Neighbourer_t& neighbourer, topo_t& topography)
+	{
+
+		std::cout << std::setprecision(8);
+		std::vector<int> to_recompute;
+		to_recompute.reserve(1000);
+		for(int i=this->nnodes-1; i >= 0; --i)
+		{
+			int node  = this->Sstack[i];
+			
+			// if(node == 148880)
+				// std::cout << "ASSESSED" << std::endl;
+
+			if(neighbourer.can_flow_out_there(node) || neighbourer.can_flow_even_go_there(node) == false)
+				continue;
+			// if(node == 148880)
+				// std::cout << "PASSED" << std::endl;
+			int rec = this->Sreceivers[node];
+			double dz = topography[node] - topography[rec];
+			if(dz <= 0)
+			{
+				topography[rec] = topography[node] - slope + neighbourer.randu.get() * 1e-7;// * d2rec;
+				to_recompute.emplace_back(rec);
+			}
+
+		}
+		return to_recompute;
 	}
 
 

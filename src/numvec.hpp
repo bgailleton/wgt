@@ -50,6 +50,7 @@ public:
 	int isize = 0;
 	size_t usize = 0;
 
+
 	numvec(){};
 	numvec(py::array_t<T,1>& arr)
 	{
@@ -86,6 +87,8 @@ template<class T>
 py::array format_output(std::vector<T>& yolo){return py::array(yolo.size(), yolo.data());}
 template<class T>
 py::array format_output(pvector<T>& yolo){return py::array(yolo.data->size(), yolo.data->data());}
+template<class T>
+py::array format_output(numvec<T>& yolo){auto vec = yolo.to_vec();  return py::array(vec.size(), vec.data());}
 py::array format_output(py::array& yolo){return yolo;}
 
 template<class T>
