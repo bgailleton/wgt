@@ -620,6 +620,27 @@ public:
 		// std::cout << "lo" << std::endl;
 	}
 
+	bool is_in_bound(int i){return (i>=0 && i<this->nnodes)? true:false;}
+
+	void fill_links_SMG(std::vector<int>& links)
+	{
+		for(int i=0; i<this->nnodes; ++i)
+		{
+			int o = this->get_right_index(i); 
+			links[i*8] = (this->is_in_bound(o) ? i:-1);
+			links[i*8 + 1] = (this->is_in_bound(o) ? o:-1);
+			o = this->get_bottomright_index(i); 
+			links[i*8 + 2] = (this->is_in_bound(o) ? i:-1);
+			links[i*8 + 3] = (this->is_in_bound(o) ? o:-1);
+			o = this->get_bottom_index(i); 
+			links[i*8 + 4] = (this->is_in_bound(o) ? i:-1);
+			links[i*8 + 5] = (this->is_in_bound(o) ? o:-1);
+			o = this->get_bottomleft_index(i); 
+			links[i*8 + 6] = (this->is_in_bound(o) ? i:-1);
+			links[i*8 + 7] = (this->is_in_bound(o) ? o:-1);
+		}
+	}
+
 
 	// This function feed is isrec bool vector of a SMGraph
 	template<class topo_t>
@@ -685,6 +706,426 @@ public:
 			}
 		}
 
+	}
+
+	
+	// This function feed is isrec bool vector of a SMGraph
+	template<class topo_t>
+	void buildSrecfromIsrec(topo_t& topography, std::vector<bool>& isrec, std::vector<int>& Sreceivers, std::vector<double>& SS)
+	{		
+
+		// looping thorugh row col to being able to deal with BC
+		for(int row = 0; row < this->ny; ++row)
+		{
+			for(int col = 0; col < this->nx; ++col)
+			{
+				// Getting node ID
+				int i = row * this->nx + col;
+				// cannot be a neighbour anyway, abort
+				if(this->can_flow_even_go_there(i) == false)
+				{
+					continue;
+				}
+
+				double this_topo = topography[i];
+
+				int n = this->get_id_right_SMG(i);
+				int tn = this->get_right_index(i);
+				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
+				{
+					double slope = std::abs(this_topo - topography[tn])/this->dx;
+					if(isrec[n])
+					{
+						if(SS[i] < slope)
+						{
+							SS[i] = slope;
+							Sreceivers[i] = tn;
+						}
+					}
+					else
+					{
+						if(SS[tn] < slope)
+						{
+							SS[tn] = slope;
+							Sreceivers[tn] = i;
+						}
+					}
+				}
+				n = this->get_id_bottomright_SMG(i);
+				tn = this->get_bottomright_index(i);
+				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
+				{
+					double slope = std::abs(this_topo - topography[tn])/this->dxy;
+					if(isrec[n])
+					{
+						if(SS[i] < slope)
+						{
+							SS[i] = slope;
+							Sreceivers[i] = tn;
+						}
+					}
+					else
+					{
+						if(SS[tn] < slope)
+						{
+							SS[tn] = slope;
+							Sreceivers[tn] = i;
+						}
+					}
+				}
+				n = this->get_id_bottom_SMG(i);
+				tn = this->get_bottom_index(i);
+				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
+				{
+					double slope = std::abs(this_topo - topography[tn])/this->dy;
+					if(isrec[n])
+					{
+						if(SS[i] < slope)
+						{
+							SS[i] = slope;
+							Sreceivers[i] = tn;
+						}
+					}
+					else
+					{
+						if(SS[tn] < slope)
+						{
+							SS[tn] = slope;
+							Sreceivers[tn] = i;
+						}
+					}
+				}
+				n = this->get_id_bottomleft_SMG(i);
+				tn = this->get_bottomleft_index(i);
+				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
+				{
+					double slope = std::abs(this_topo - topography[tn])/this->dxy;
+					if(isrec[n])
+					{
+						if(SS[i] < slope)
+						{
+							SS[i] = slope;
+							Sreceivers[i] = tn;
+						}
+					}
+					else
+					{
+						if(SS[tn] < slope)
+						{
+							SS[tn] = slope;
+							Sreceivers[tn] = i;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// This function feed is isrec bool vector of a SMGraph
+	template<class topo_t>
+	void build_smgraph_only_MF_mask(topo_t& topography, std::vector<bool>& isrec, std::vector<bool>& mask)
+	{		
+
+		
+
+		// looping thorugh row col to being able to deal with BC
+		for(int row = 0; row < this->ny; ++row)
+		{
+			for(int col = 0; col < this->nx; ++col)
+			{
+
+				// Getting node ID
+				int i = row * this->nx + col;
+
+				if(mask[i] == false)
+					continue;
+
+				// cannot be a neighbour anyway, abort
+				if(this->can_flow_even_go_there(i) == false)
+				{
+					continue;
+				}
+
+				double this_topo = topography[i];
+
+				int n = this->get_id_right_SMG(i);
+				int tn = this->get_right_index(i);
+				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
+				{
+					if(topography[tn] < this_topo)
+						isrec[n] = true;
+					else
+						isrec[n] = false;
+				}
+				n = this->get_id_bottomright_SMG(i);
+				tn = this->get_bottomright_index(i);
+				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
+				{
+					if(topography[tn] < this_topo)
+						isrec[n] = true;
+					else
+						isrec[n] = false;
+				}
+				n = this->get_id_bottom_SMG(i);
+				tn = this->get_bottom_index(i);
+				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
+				{
+					if(topography[tn] < this_topo)
+						isrec[n] = true;
+					else
+						isrec[n] = false;
+				}
+				n = this->get_id_bottomleft_SMG(i);
+				tn = this->get_bottomleft_index(i);
+				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
+				{
+					if(topography[tn] < this_topo)
+						isrec[n] = true;
+					else
+						isrec[n] = false;
+				}
+
+				n = this->get_id_left_SMG(i);
+				tn = this->get_left_index(i);
+				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
+				{
+					if(topography[tn] < this_topo)
+						isrec[n] = false;
+					else
+						isrec[n] = true;
+				}
+				n = this->get_id_topleft_SMG(i);
+				tn = this->get_topleft_index(i);
+				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
+				{
+					if(topography[tn] < this_topo)
+						isrec[n] = false;
+					else
+						isrec[n] = true;
+				}
+				n = this->get_id_top_SMG(i);
+				tn = this->get_top_index(i);
+				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
+				{
+					if(topography[tn] < this_topo)
+						isrec[n] = false;
+					else
+						isrec[n] = true;
+				}
+				n = this->get_id_topright_SMG(i);
+				tn = this->get_topright_index(i);
+				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
+				{
+					if(topography[tn] < this_topo)
+						isrec[n] = false;
+					else
+						isrec[n] = true;
+				}
+
+			}
+		}
+
+	}
+
+	// This function feed is isrec bool vector of a SMGraph
+	template<class topo_t>
+	void buildSrecfromIsrec_mask(topo_t& topography, std::vector<bool>& isrec, std::vector<int>& Sreceivers, std::vector<double>& SS, std::vector<bool>& mask)
+	{		
+
+		// looping thorugh row col to being able to deal with BC
+		for(int row = 0; row < this->ny; ++row)
+		{
+			for(int col = 0; col < this->nx; ++col)
+			{
+				// Getting node ID
+				int i = row * this->nx + col;
+				// cannot be a neighbour anyway, abort
+				if(this->can_flow_even_go_there(i) == false || mask[i] == false)
+				{
+					continue;
+				}
+
+				double this_topo = topography[i];
+
+				int n = this->get_id_right_SMG(i);
+				int tn = this->get_right_index(i);
+				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
+				{
+					double slope = std::abs(this_topo - topography[tn])/this->dx;
+					if(isrec[n])
+					{
+						if(SS[i] < slope)
+						{
+							SS[i] = slope;
+							Sreceivers[i] = tn;
+						}
+					}
+					else
+					{
+						if(SS[tn] < slope)
+						{
+							SS[tn] = slope;
+							Sreceivers[tn] = i;
+						}
+					}
+				}
+				n = this->get_id_bottomright_SMG(i);
+				tn = this->get_bottomright_index(i);
+				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
+				{
+					double slope = std::abs(this_topo - topography[tn])/this->dxy;
+					if(isrec[n])
+					{
+						if(SS[i] < slope)
+						{
+							SS[i] = slope;
+							Sreceivers[i] = tn;
+						}
+					}
+					else
+					{
+						if(SS[tn] < slope)
+						{
+							SS[tn] = slope;
+							Sreceivers[tn] = i;
+						}
+					}
+				}
+				n = this->get_id_bottom_SMG(i);
+				tn = this->get_bottom_index(i);
+				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
+				{
+					double slope = std::abs(this_topo - topography[tn])/this->dy;
+					if(isrec[n])
+					{
+						if(SS[i] < slope)
+						{
+							SS[i] = slope;
+							Sreceivers[i] = tn;
+						}
+					}
+					else
+					{
+						if(SS[tn] < slope)
+						{
+							SS[tn] = slope;
+							Sreceivers[tn] = i;
+						}
+					}
+				}
+				n = this->get_id_bottomleft_SMG(i);
+				tn = this->get_bottomleft_index(i);
+				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
+				{
+					double slope = std::abs(this_topo - topography[tn])/this->dxy;
+					if(isrec[n])
+					{
+						if(SS[i] < slope)
+						{
+							SS[i] = slope;
+							Sreceivers[i] = tn;
+						}
+					}
+					else
+					{
+						if(SS[tn] < slope)
+						{
+							SS[tn] = slope;
+							Sreceivers[tn] = i;
+						}
+					}
+				}
+
+				n = this->get_id_left_SMG(i);
+				tn = this->get_left_index(i);
+				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
+				{
+					double slope = std::abs(this_topo - topography[tn])/this->dx;
+					if(isrec[n] == false)
+					{
+						if(SS[i] < slope)
+						{
+							SS[i] = slope;
+							Sreceivers[i] = tn;
+						}
+					}
+					else
+					{
+						if(SS[tn] < slope)
+						{
+							SS[tn] = slope;
+							Sreceivers[tn] = i;
+						}
+					}
+				}
+				n = this->get_id_topleft_SMG(i);
+				tn = this->get_topleft_index(i);
+				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
+				{
+					double slope = std::abs(this_topo - topography[tn])/this->dxy;
+					if(isrec[n] == false)
+					{
+						if(SS[i] < slope)
+						{
+							SS[i] = slope;
+							Sreceivers[i] = tn;
+						}
+					}
+					else
+					{
+						if(SS[tn] < slope)
+						{
+							SS[tn] = slope;
+							Sreceivers[tn] = i;
+						}
+					}
+				}
+				n = this->get_id_top_SMG(i);
+				tn = this->get_top_index(i);
+				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
+				{
+					double slope = std::abs(this_topo - topography[tn])/this->dy;
+					if(isrec[n] == false)
+					{
+						if(SS[i] < slope)
+						{
+							SS[i] = slope;
+							Sreceivers[i] = tn;
+						}
+					}
+					else
+					{
+						if(SS[tn] < slope)
+						{
+							SS[tn] = slope;
+							Sreceivers[tn] = i;
+						}
+					}
+				}
+				n = this->get_id_topright_SMG(i);
+				tn = this->get_topright_index(i);
+				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
+				{
+					double slope = std::abs(this_topo - topography[tn])/this->dxy;
+					if(isrec[n] == false)
+					{
+						if(SS[i] < slope)
+						{
+							SS[i] = slope;
+							Sreceivers[i] = tn;
+						}
+					}
+					else
+					{
+						if(SS[tn] < slope)
+						{
+							SS[tn] = slope;
+							Sreceivers[tn] = i;
+						}
+					}
+				}
+			}
+		}
 	}
 
 	// This function feed is isrec bool vector of a SMGraph
@@ -1645,8 +2086,81 @@ public:
 
 	}
 
+	template<class topo_t>
+	std::vector<bool> simple_fill(topo_t& topography,std::vector<int>& Sreceivers)
+	{
+		
+		std::vector<bool> filled(this->nnodes,false), inqueue(this->nnodes,false);
+		std::vector<PQ_helper<int,double> > starting_blocks;
+		for(int i = 0 ; i< this->nnodes; ++i)
+		{
+			if(this->is_active(i) && Sreceivers[i] == i && inqueue[i] == false)
+			{
+				// std::cout << "YOLO::" << i << std::endl;
+				PQ_i_d pq;
+				pq.emplace(i, topography[i]);
+				while(pq.empty() == false)
+				{
+					auto next = pq.top(); pq.pop();
+
+					inqueue[next.node] = true;
+
+					auto neighs = this->get_neighbours_only_id(next.node);
+					bool double_break = false;
+					for(auto n:neighs)
+					{
+						if(topography[n]< topography[next.node] && inqueue[n] == false)
+						{
+							// std::cout << "BAFULB" << std::endl;
+							starting_blocks.emplace_back(next.node,topography[next.node]);
+							double_break = true;
+							break;
+						}
+						else
+						{
+							if(inqueue[n] == false)
+							{
+								pq.emplace(n,topography[n]);
+								inqueue[n] = true;
+							}
+						}
+					}
+					if(double_break)
+						break;
+
+				}
+			}
+		}
+
+		std::stable_sort(starting_blocks.begin(), starting_blocks.end());
+
+		for(auto start:starting_blocks)
+		{
+			std::queue<int> todo;
+			todo.emplace(start.node);
+			filled[start.node] = true;
+			// std::cout << "START::" << start.node << std::endl;
+			while(todo.empty() == false)
+			{
+				auto next = todo.front();todo.pop();
+				auto neighs = this->get_neighbours_only_id(next);
+				for(auto n: neighs)
+				{
+					if(filled[n] || inqueue[n] == false )
+						continue;
+					double tgz = topography[next] + 1e-5 + this->randu.get() * 1e-6;
+					topography[n] = std::max(tgz, topography[n]);
+					filled[n] = true;
+					todo.emplace(n);
+				}
+			}
+		}
 
 
+
+		return filled;
+
+	}
 
 
 
@@ -1654,12 +2168,12 @@ public:
 	template <class topo_t>
 	std::vector<double> fill_barne_2014(topo_t& ttopography)
 	{
-
 		std::random_device rd; // obtain a random number from hardware
 	  std::mt19937 gen(rd()); // seed the generator
 	  std::uniform_real_distribution<> distr(1e-7, 1e-6); // define the range
 
-		std::vector<double> topography = to_vec(ttopography);
+		auto tttopography = format_input(ttopography);
+		std::vector<double> topography = to_vec(tttopography);
 
 	  PQ_i_d open;
 	  std::queue<PQ_helper<int,double> > pit;
@@ -1948,7 +2462,133 @@ public:
 
 	  return topography;
 	}
-	 	
+	
+
+	template<class topo_t>
+	void fill_connected_component(std::vector<bool>& isdep, int ndep, topo_t& topography, std::vector<int>& Sreceivers)
+	{			
+
+		std::vector<bool> connected(this->nnodes,false);
+		std::vector<PQ_helper<int,double> > lowest_neighbour(ndep, PQ_helper<int,double>(-1,std::numeric_limits<double>::max()));
+		std::vector<int> nndep(ndep,0);
+		// looping thorugh row col to being able to deal with BC
+		int NC = -1;
+		// std::cout << "WABUNDEBUG1.1 " << std::endl;
+		for(int i=0; i < this->nnodes; ++i)
+		{
+			if(isdep[i] && connected[i] == false)
+			{
+				std::queue<int> todo;
+				todo.emplace(i);
+				++NC;
+				connected[i] = true;
+
+
+				while(todo.empty() == false)
+				{
+					int next = todo.front();todo.pop();
+					isdep[next] = NC;
+					nndep[NC]++;
+					auto neighs = this->get_neighbours_only_id(next);
+					for(auto n:neighs)
+					{
+						if(isdep[n] == false)
+						{
+							if(topography[n] < lowest_neighbour[NC].score)
+								lowest_neighbour[NC] = PQ_helper<int,double>(n, topography[n]);
+						}
+						else
+						{
+							if(connected[n])
+								continue;
+
+							todo.emplace(n);
+							connected[n] = true;
+						}
+					}
+				}
+			}
+		}
+
+		// std::cout << "WABUNDEBUG1.2 " << std::endl;
+		for(int i=0; i < this->nnodes; ++i)
+			connected[i] = false;
+		// std::cout << "WABUNDEBUG1.21 " << std::endl;
+
+		for(int i =0; i < NC; ++i)
+		{
+			int next = lowest_neighbour[i].node;
+			// std::cout << next << std::endl;
+			// std::cout << "||" << nndep[i] << std::endl;
+			std::queue<int> todo;
+			todo.emplace(next);
+			connected[next] = true;
+
+
+			while(todo.empty() == false)
+			{
+				next = todo.front();todo.pop();
+				auto neighs = this->get_neighbours_only_id(next);
+				for(auto n:neighs)
+				{
+					if(isdep[n] == -1 || connected[n])
+						continue;
+					if(topography[n] <= topography[next])
+						topography[n] = topography[next] + 1e-3 + this->randu.get()*1e-6;
+					connected[n] = true;
+					Sreceivers[n] = next;
+					todo.emplace(n);
+				}
+				
+
+			}
+		}
+		// std::cout << "WABUNDEBUG1.3 " << std::endl;
+	}
+
+
+	// template<>
+	// void fill_neighbour_matrices()
+
+	template<class i_t>
+	T get_dx_from_isrec_idx( i_t i)
+	{
+		if(i%4 == 0)
+			return this->dx;
+		else if(i%4 == 1)
+			return this->dxy;
+		else if(i%4 == 2)
+			return this->dy;
+		else if(i%4 == 3)
+			return this->dxy;
+	}
+
+	std::vector<int> get_ilinks_from_node(int i)
+	{
+		std::vector<int> out;out.reserve(8);
+		int tn = this->get_id_right_SMG(i);
+		if(tn >0 && tn < this->nnodes * 4)
+			out.emplace_back(tn);
+		tn = this->get_id_bottomright_SMG(i);
+		if(tn >0 && tn < this->nnodes * 4)
+			out.emplace_back(tn);
+		tn = this->get_id_bottom_SMG(i);
+		if(tn >0 && tn < this->nnodes * 4)
+			out.emplace_back(tn);
+		tn = this->get_id_bottomleft_SMG(i);
+		if(tn >0 && tn < this->nnodes * 4)
+			out.emplace_back(tn);
+		tn = this->get_id_left_SMG(i);
+		if(tn >0 && tn < this->nnodes * 4)
+			out.emplace_back(tn);
+		tn = this->get_id_topleft_SMG(i);
+		if(tn >0 && tn < this->nnodes * 4)
+			out.emplace_back(tn);
+		tn = this->get_id_top_SMG(i);
+		if(tn >0 && tn < this->nnodes * 4)
+			out.emplace_back(tn);
+		return out;
+	}
 
 
 };

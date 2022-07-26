@@ -202,11 +202,11 @@ class UnionFindv2
 };
 
 
-template<class n_t, class dist_t, class Neighbourer_t, class topo_t>
+template<class n_t, class dist_t, class Neighbourer_t, class topo_t, class LM_t>
 class UnionFindv3
 {
 	public:
-		UnionFindv3(int size,LMRerouter<n_t,dist_t,Neighbourer_t,topo_t> &cod )
+		UnionFindv3(int size,LM_t &cod )
 		{
 			this->cod = &cod;
 			this->_parent = std::vector<int>(size);
@@ -2243,7 +2243,7 @@ public:
 		this->bas2links = std::vector< std::vector< Link<n_t, dist_t>* > >( this->nbasins, std::vector< Link<n_t, dist_t>* >() );
 		int mstree_size = 0;
 
-		UnionFindv3<n_t,dist_t,Neighbourer_t,topo_t> uf(nbasins, (*this) );
+		UnionFindv3<n_t,dist_t,Neighbourer_t,topo_t, LMRerouter<n_t,dist_t,Neighbourer_t,topo_t> > uf(nbasins, (*this) );
 		int j = 0;
 
 		while(this->pqlinks.empty() == false)
@@ -2505,8 +2505,8 @@ public:
 		// for i in mstree:
 		// std::cout <<"yolo";
 		std::vector<bool> isdone(neighbourer.nnodes_t,false);
-		for(int i=this->stack.size() - 1; i >=0 ; --i)
-		// for(int i=0;  i<this->stack.size(); ++i)
+		// for(int i=this->stack.size() - 1; i >=0 ; --i)
+		for(int i=0;  i<this->stack.size(); ++i)
 		{
 
 			auto tlink = this->stack[i];
@@ -2521,10 +2521,11 @@ public:
 
 
 			// # skip open basins
-			if (node_from == -1)
+			if (this->is_open_basin[this->basin_labels[node_to]])
 			{
-					continue;
+				continue;
 			}
+
 			// std::cout << "rec nodde_from beef " << this->graph->receivers[node_from];;
 			float otopo = std::fmax(topography[node_to],topography[node_from]);
 			std::queue<int> yonode;
@@ -2582,6 +2583,273 @@ public:
 
 
 
+
+class LMRerouter_II
+{
+
+public:
+
+	int nbas;
+
+	// node size
+	std::vector<int> basins;
+
+	// nbasins size
+	std::vector<bool> is_open_basin;
+	std::vector<int> receivers;
+	std::vector<int> pitnode;
+	std::vector<std::pair<int,int> > receivers_node;
+	std::vector<int> stack;
+	std::vector<std::vector<int> > donors;
+
+
+	//
+	std::unordered_map<std::pair<int,int> , double> edges;
+	std::unordered_map<std::pair<int,int> , std::pair<int,int> > edges_nodes;
+
+	LMRerouter_II(){};
+
+	template<class topo_t, class Neighbourer_t>
+	bool run(std::string method, topo_t& topography, Neighbourer_t& neighbourer, std::vector<int>& Sreceivers, std::vector<int>& Sstack, std::vector<int>& links)
+	{
+		
+		this->nbas = -1;
+		this->basins = std::vector<int>(neighbourer.nnodes,0);
+		int nbas2solve = 0;
+		for(int i=0; i<neighbourer.nnodes; ++i)
+		{
+			int node = Sstack[i];
+			if(Sreceivers[node] == node)
+			{
+				++nbas;
+				if(neighbourer.can_flow_out_there(node))
+				{
+					this->is_open_basin.emplace_back(true);
+					this->pitnode.emplace_back(node);
+				}
+				else
+				{
+					++nbas2solve;
+					this->is_open_basin.emplace_back(false);
+					this->pitnode.emplace_back(node);
+				}
+			}
+			this->basins[node] = nbas;
+		}
+		
+		++this->nbas;
+
+		for(int i=0; i<neighbourer.nnodes; ++i)
+			if(this->is_open_basin[this->basins[i]]) this->basins[i] = 0;
+
+		if(nbas2solve == 0)
+			return false;
+
+		int nlinks = 0;
+
+		for(int i=0; i<links.size(); ++i)
+		{
+			if(links[i] < 0)
+			{
+				++i;
+				continue;
+			}
+
+			int j = i;
+			int k = j+1;
+			++i;
+			int bj = this->basins[links[j]];
+			int bk = this->basins[links[k]];
+			if(bj == bk || this->is_open_basin[bj] || this->is_open_basin[bk])
+				continue;
+
+			double score = std::min(topography[links[j]],topography[links[k]]);
+			bool bjmin = bj<bk;
+			std::pair<int,int> tp = {(bjmin)?bj:bk, (bjmin)?bk:bj};
+			auto it_e = this->edges.find(tp);
+			if(it_e == this->edges.end())
+			{
+				++nlinks;
+				this->edges[tp] = score;
+				this->edges_nodes[tp] = std::pair<int,int>{(bjmin)?links[j]:links[k], (bjmin)?links[k]:links[j]};
+			}
+			else
+			{
+				if(score < it_e->second)
+				{
+					it_e->second = score;
+					this->edges_nodes[it_e->first] = std::pair<int,int>{(bjmin)?links[j]:links[k], (bjmin)?links[k]:links[j]};
+				}
+			}
+		}
+
+		std::vector<PQ_helper<std::pair<int,int>, double > > basinlinks;basinlinks.reserve(nlinks);
+		for(auto it: this->edges)
+		{
+			basinlinks.emplace_back(PQ_helper<std::pair<int,int>, double >(it->first,it->second));
+		}
+
+		std::sort(basinlinks.begin(), basinlinks.end());
+		std::vector<bool> isactive(basinlinks.size(), false);
+
+		UnionFindv3<int, double, Neighbourer_t,topo_t, LMRerouter_II> uf(this->nbasins, (*this) );
+
+		this->receivers = std::vector<int>(this->nbasins);
+		this->receivers_node = std::vector<std::pair<int,int> >(this->nbasins);
+		for(int i =0; i<this->nbasins; ++i)
+			this->receivers[i] = i;
+
+
+		for(size_t i = 0; i < basinlinks.size(); ++i)
+		{
+			auto& next = basinlinks[i];
+
+			int b0 = next.node.first;
+			int b1 = next.node.second;
+
+			int fb0 = uf.Find(b0);
+			int fb1 = uf.Find(b1) ;
+
+			if (fb0 != fb1)
+			{
+
+				if(uf._open[fb0] && uf._open[fb1])
+					continue;
+				// std::cout << "GOUGN::" << b0 << "|" << b1 << "|" << this->nbasins << std::endl;
+				
+				uf.Union(b0, b1);
+				isactive[i] = true;
+				if(this->is_open_basin[basinlinks[i].node.first])
+				{
+					this->receivers[basinlinks[i].node.second] = basinlinks[i].node.first;
+					this->receivers_node[basinlinks[i].node.second] = std::pair<int,int>{this->edges_nodes[basinlinks[i].node].second ,this->edges_nodes[basinlinks[i].node].first};
+					this->is_open_basin[basinlinks[i].node.second] = true;
+				}
+				else if(this->is_open_basin[basinlinks[i].node.second])
+				{
+					this->receivers[basinlinks[i].node.first] = basinlinks[i].node.second;
+					this->receivers_node[basinlinks[i].node.first] = std::pair<int,int>{this->edges_nodes[basinlinks[i].node].fist ,this->edges_nodes[basinlinks[i].node].second};
+					this->is_open_basin[basinlinks[i].node.first] = true;
+				}
+			}
+		}
+
+		while(true)
+		{
+			bool alltrue = true;
+			for(size_t i=0; i=basinlinks.size();++i)
+			{
+				
+				if(isactive[i] == false || (this->is_open_basin[basinlinks[i].node.first] && this->is_open_basin[basinlinks[i].node.second]))
+					continue;
+
+				if(this->is_open_basin[basinlinks[i].node.first])
+				{
+					this->receivers[basinlinks[i].node.second] = basinlinks[i].node.first;
+					this->is_open_basin[basinlinks[i].node.second] = true;
+				}
+				else if(this->is_open_basin[basinlinks[i].node.second])
+				{
+					this->receivers[basinlinks[i].node.first] = basinlinks[i].node.second;
+					this->is_open_basin[basinlinks[i].node.first] = true;
+				}
+				else
+					alltrue = false;
+			}
+			if(alltrue)
+				break;
+		}
+
+
+		this->donors = std::vector<std::vector<int> >(this->nbasins, std::vector<int>());
+		for(int i=0; i<this->nbasins; ++i)
+		{
+			if(this->receivers[i] != i)
+			{
+				this->donors[this->receivers[i]].emplace_back(i);
+			}
+		}
+
+		this->compute_TO_SF_stack_version();
+
+		if(method == "carve")
+		{
+			for(int i =  this->nbasins-1; i>=0; ++i)
+			{
+				int bas = this->stack[i];
+				if(this->is_open_basin[bas])
+					continue;
+				int from = this->receivers_node[bas].first; 
+				int to = this->receivers_node[bas].second;
+				int A = from, B = Sreceivers[A], C = B;
+				while(A != this->pitnode[bas])
+				{
+					C = Sreceivers[B];
+					Sreceivers[B] = A;
+					A = B;
+					B = C;
+				}
+				Sreceivers[from] = to;
+			}
+		}
+
+		return true;
+
+
+
+
+	}
+
+	void compute_TO_SF_stack_version()
+	{
+		// Initialising the stack
+		this->stack.clear();
+		// reserving the amount of stuff
+		this->stack.reserve(this->nbasins);
+
+		// The stack container helper
+		std::stack<int, std::vector<int> > stackhelper;
+		// std::vector<bool> isdone(this->nbasins,false);
+		// going through all the nodes
+		for(int i=0; i<this->nbasins; ++i)
+		{
+			// if they are base level I include them in the stack
+			if(this->receivers[i] == i)
+			{
+				stackhelper.emplace(i);
+			}
+
+			// While I still have stuff in the stack helper
+			while(stackhelper.empty() == false)
+			{
+				// I get the next node and pop it from the stack helper
+				int nextnode = stackhelper.top();stackhelper.pop();
+				// std::cout << stackhelper.size() << "->" << nextnode << std::endl;
+
+				// // I emplace it in the stack
+				// if(isdone[nextnode] == true)
+				//	throw std::runtime_error("node-duplicate");
+
+
+				// isdone[nextnode] = true;
+				this->stack.emplace_back(nextnode);
+
+				// as well as all its donors which will be processed next
+				for( int j = 0; j < this->donors[nextnode].size(); ++j)
+				{
+					stackhelper.emplace(this->donors[nextnode][j]);
+				}
+
+			}
+
+		}
+
+
+
+	}
+
+
+};
 
 
 

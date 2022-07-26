@@ -86,6 +86,7 @@ template<class T>
 py::array format_output(std::vector<T>& yolo){return py::array(yolo.size(), yolo.data());}
 template<class T>
 py::array format_output(pvector<T>& yolo){return py::array(yolo.data->size(), yolo.data->data());}
+py::array format_output(py::array& yolo){return yolo;}
 
 template<class T>
 std::vector<T> to_vec(numvec<T>& in)

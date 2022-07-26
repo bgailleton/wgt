@@ -403,6 +403,13 @@ public:
 };
 
 
+// template< class T>
+// std::vector<T> to_vec(pvector<T>& pv)
+// {
+// 	return *pv.data;
+// }
+
+
 // template<class Neighbourer, class Holder>
 // class RasterData
 // {
@@ -472,6 +479,15 @@ std::vector<T> to_vec(pvector<T>& in)
 {
 	return std::vector<T>(*in.data);
 }
+
+
+template<class T>
+std::vector<T> to_vec(std::vector<T>& in)
+{
+	return std::vector<T>(in);
+}
+
+
 
 // template<class T>
 // std::vector<T> format_output(std::vector<T>& in){return in;}

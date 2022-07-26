@@ -113,7 +113,7 @@ void run_multi_fastflood_static(SMgraph& graph, Neighbourer_t& neighbourer, topo
 		// I'll need to store the maximum slope and the sum of sts
 		double maxslope = 1e-6;
 		double sumst = 0;
-		// double sumw = 0;
+		double sumw = 0;
 		for(auto rec:recs)
 		{
 		// std::cout << "FF::DEBUG::2.51::" << rec.first <<"|" << rec.second << std::endl;
@@ -121,7 +121,7 @@ void run_multi_fastflood_static(SMgraph& graph, Neighbourer_t& neighbourer, topo
 				continue;
 			double weight = Sw[rec.second]/sumslopes[node];
 			// double weight = std::pow(Sw[rec.second],2)/sumsl;
-			// sumw += weight;
+			sumw += weight;
 			// WEIGHTS+= weight;
 
 			if(neighbourer.is_active(rec.first))
@@ -138,8 +138,13 @@ void run_multi_fastflood_static(SMgraph& graph, Neighbourer_t& neighbourer, topo
 				maxslope = Sw[rec.second];
 		}
 
-		Qout[node] = neighbourer.dx * 1/manning * 0.5/recs.size() * std::pow(hw[node],5/3) * sumst/maxslope;// / std::sqrt(2); // Note that smst is the sum of slopes and maxslope is squarerooted
+		if(std::abs(sumw - 1) >1e-2 )
+			throw std::runtime_error("SUMW ERROR::" + std::to_string(sumw));
 
+		Qout[node] = neighbourer.dx * 1/manning * 0.5/recs.size() * std::pow(hw[node],5/3) * sumst/maxslope;// / std::sqrt(2); // Note that smst is the sum of slopes and maxslope is squarerooted
+		
+		if(std::isfinite(Qout[node]) == false)
+			std::cout << recs.size() << "|" << std::pow(hw[node],5/3) << "|" << maxslope << "|" << sumst << std::endl;
 	}
 
 	// std::cout << "FLUXES OUT = " << QW_OUT << " and weights " << WEIGHTS << " TOTNRECS " << totnrecs << " vs " << graph.isrec.size() << std::endl;

@@ -65,19 +65,145 @@ public:
 	// bool vector for each link: true is receiver direction and false is donor
 	// The meaning of the index depends on the neighbourer
 	std::vector<bool> isrec;
+	std::vector<int> links;
 	// Single graph receivers (optional)
-	std::vector<int> Sreceivers;
+	std::vector<int> Sreceivers,nSdonors,Sdonors;
 	// Topological order and Single graph topological order (optional)
 	std::vector<size_t> stack, Sstack;
-	// Single graph donor (optional)
-	std::vector<std::vector<int> > Sdonors;
+
 	// Single graph distance to receivers
 	std::vector<double> Sdistance2receivers;
+
+	std::vector<double> SS;
 
 
 	// default constructor
 	SMgraph(){};
 	SMgraph(int nnodes, int n_neighbours){this->nnodes = nnodes; this->n_neighbours = n_neighbours ;}
+
+
+	void _allocate_vectors()
+	{
+		this->isrec = std::vector<bool>(int(this->nnodes * this->n_neighbours/2), false);
+		this->links = std::vector<int>(int(this->nnodes * this->n_neighbours), -1);
+		this->Sreceivers = std::vector<int>(this->nnodes,-1);
+		this->Sstack = std::vector<size_t>(this->nnodes,0);
+		for(int i=0;i<this->nnodes; ++i)
+			this->Sreceivers[i] = i;
+		this->Sdistance2receivers = std::vector<double >(this->nnodes,-1);
+		this->SS = std::vector<double>(this->nnodes,0.);
+	}
+
+	template<class Neighbourer_t,class topo_t>
+	void update_Mrecs(topo_t& topography, Neighbourer_t& neighbourer)
+	{
+		for(size_t i = 0; i<this->isrec.size(); ++i)
+		{
+			size_t from = i*2;
+			size_t to = from + 1;
+			
+			if(from < 0)
+				continue;
+
+			if(topography[from] > topography[to])
+				this->isrec[i] = true;
+			else
+				this->isrec[i] = false;
+		}
+	}
+	template<class Neighbourer_t,class topo_t>
+	void update_some_Mrecs(topo_t& topography, Neighbourer_t& neighbourer, std::vector<int>& some)
+	{
+		for(size_t j = 0; j<this->some.size(); ++j)
+		{
+			int node = some[i];
+			auto ilinks = neighbourer.get_ilinks_from_node(node);
+			for(auto i: ilinks)
+			{
+				size_t from = i*2;
+				size_t to = from + 1;
+				
+				if(from < 0)
+					continue;
+				if()
+
+				if(topography[from] > topography[to])
+					this->isrec[i] = true;
+				else
+					this->isrec[i] = false;
+			}
+		}
+	}
+
+	template<class Neighbourer_t,class topo_t>
+	void update_recs(topo_t& topography, Neighbourer_t& neighbourer)
+	{
+		for(size_t i = 0; i<this->isrec.size(); ++i)
+		{
+			size_t from = i*2;
+			size_t to = from + 1;
+			
+			if(from < 0)
+				continue;
+
+			double slope = (topography[from] - topography[to])/neighbourer.get_dx_from_isrec_idx(i); 
+
+			if(slopes>0)
+			{
+				this->isrec[i] = true;
+				if(this->SS[from]<slope)
+				{
+					this->Sreceivers[from] = to;
+					this->SS[from] = slope
+				}
+			}
+			else
+			{
+				this->isrec[i] = false;
+				slope = std::abs(slope);
+				if(this->SS[to]<slope)
+				{
+					this->Sreceivers[to] = from;
+					this->SS[to] = slope
+				}
+			}
+
+
+		}
+	}
+
+
+
+	template<class Neighbourer_t>
+	void init_graph_v6(Neighbourer_t& neighbourer)
+	{
+		// Allocate vectors
+		this->_allocate_vectors();
+		neighbourer.fill_links_SMG(this->links);
+	}
+
+	template<class Neighbourer_t,class topo_t, class out_t>
+	out_t compute_graph_v6(std::string depression_solver, topo_t& ttopography, Neighbourer_t& neighbourer)
+	{
+		auto topography = format_input(ttopography);
+		this->update_recs(topography,neighbourer);
+		this->compute_SF_donors_from_receivers();
+		this->compute_TO_SF_stack_version();
+		LMRerouter_II depsolver;
+		bool need_recompute = depsolver.run(depression_solver, topography, neighbourer, this->Sreceivers, this->Sstack, this->links);
+		if(need_recompute)
+		{
+			this->recompute_SF_donors_from_receivers();
+			this->compute_TO_SF_stack_version();
+			std::vector<double> faketopo(to_vec(topography));
+			std::vector<int> to_recompute = this->carve_topo_v2(1e-4,neighbourer,faketopo);
+			this->update_some_Mrecs(faketopo,neighbourer,to_recompute);
+			return format_output(faketopo);
+		}
+		else
+			return format_output(topography);	
+
+	}
 
 	template<class Neighbourer_t,class topo_t, class out_t>
 	out_t compute_graph(std::string depression_solver, topo_t& ttopography, Neighbourer_t& neighbourer)
@@ -89,23 +215,24 @@ public:
 		timer.tik();
 
 		auto topography = format_input(ttopography);
-		add_noise_to_vector(topography,-1e-6,1e-6);
+		add_noise_to_vector(topography,-1e-8,1e-8);
 
 		this->isrec = std::vector<bool>(int(this->nnodes * this->n_neighbours/2), false);
 		this->Sreceivers = std::vector<int>(this->nnodes,-1);
+		this->Sstack = std::vector<size_t>(this->nnodes,0);
 		for(int i=0;i<this->nnodes; ++i)
 			this->Sreceivers[i] = i;
 		this->Sdistance2receivers = std::vector<double >(this->nnodes,-1);
 		
-		std::vector<double> SS(this->nnodes,0.);
+		this->SS = std::vector<double>(this->nnodes,0.);
 		// timer.tok("Initiation");
 
 		timer.tik();
-		neighbourer.build_smgraph_SS_only_SS(topography, this->Sreceivers, this->Sdistance2receivers, SS);
+		neighbourer.build_smgraph_SS_only_SS(topography, this->Sreceivers, this->Sdistance2receivers, this->SS);
 		// timer.tok("Build_SS");
 
 		timer.tik();
-		this->recompute_SF_donors_from_receivers();
+		this->compute_SF_donors_from_receivers();
 		this->compute_TO_SF_stack_version();
 
 		// timer.tok("SS_stuff");
@@ -120,16 +247,27 @@ public:
 
 		this->compute_TO_SF_stack_version();
 
+		for(int i=0; i < this->nnodes; ++i)
+		{
+			if(neighbourer.is_active(i) && i == this->Sreceivers[i])
+				throw std::runtime_error("critical error");
+		}
+
 		if(depression_solver == "carve")
 		{
-			this->carve_topo(1e-3,neighbourer,faketopo);
+			this->carve_topo(1e-4,neighbourer,faketopo);
 
 		}
 		else if (depression_solver == "fill")
-			this->fill_topo(1e-3,neighbourer,faketopo);
+			this->fill_topo(1e-4,neighbourer,faketopo);
 
 
 		// timer.tok("Process topo post depression");
+		for(int i=0; i < this->nnodes; ++i)
+		{
+			if(neighbourer.is_active(i) && faketopo[i] <= faketopo[this->Sreceivers[i]])
+				throw std::runtime_error("critical error in carvefill");
+		}
 
 
 		
@@ -151,13 +289,44 @@ public:
 	{
 		
 		auto topography = format_input(ttopography);
+		// ocarina timer;
+		// timer.tik();
+
+		// // auto topography = format_input(ttopography);
+		// add_noise_to_vector(topography,-1e-6,1e-6);
+
+		this->isrec = std::vector<bool>(int(this->nnodes * this->n_neighbours/2), false);
+
+		// timer.tik();
+		// std::vector<double> faketopo = neighbourer.fill_barne_2014(topography);
+		std::vector<double> faketopo = neighbourer.PriorityFlood_Wei2018(topography);
+
+		// add_noise_to_vector(faketopo,-1e-6,1e-6);
+		// timer.tok("filled depression");
+
+		// timer.tik();
+		neighbourer.build_smgraph_only_MF(faketopo, this->isrec);
+
+		this->compute_MF_topological_order_insort(faketopo);
+		
+		// timer.tok("MF stuffs");
+
+
+		return format_output(faketopo);
+	}
+
+	template<class Neighbourer_t, class topo_t, class out_t>
+	out_t update_graph_multi_filled( topo_t& ttopography, Neighbourer_t& neighbourer)
+	{
+		
+		auto topography = format_input(ttopography);
 		ocarina timer;
 		timer.tik();
 
 		// auto topography = format_input(ttopography);
-		add_noise_to_vector(topography,-1e-6,1e-6);
+		// add_noise_to_vector(topography,-1e-6,1e-6);
 
-		this->isrec = std::vector<bool>(int(this->nnodes * this->n_neighbours/2), false);
+		// this->isrec = std::vector<bool>(int(this->nnodes * this->n_neighbours/2), false);
 
 		timer.tik();
 		// std::vector<double> faketopo = neighbourer.fill_barne_2014(topography);
@@ -178,7 +347,7 @@ public:
 	}
 
 	template<class Neighbourer_t, class topo_t, class out_t>
-	out_t update_graph_multi_filled( topo_t& ttopography, Neighbourer_t& neighbourer)
+	out_t compute_graph_single_filled( topo_t& ttopography, Neighbourer_t& neighbourer)
 	{
 		
 		auto topography = format_input(ttopography);
@@ -188,21 +357,21 @@ public:
 		// auto topography = format_input(ttopography);
 		add_noise_to_vector(topography,-1e-6,1e-6);
 
-		// this->isrec = std::vector<bool>(int(this->nnodes * this->n_neighbours/2), false);
-
-		timer.tik();
-		// std::vector<double> faketopo = neighbourer.fill_barne_2014(topography);
 		std::vector<double> faketopo = neighbourer.PriorityFlood_Wei2018(topography);
-
-		// add_noise_to_vector(faketopo,-1e-6,1e-6);
-		// timer.tok("filled depression");
-
-		timer.tik();
-		neighbourer.build_smgraph_only_MF(faketopo, this->isrec);
-
-		this->compute_MF_topological_order_insort(faketopo);
 		
-		// timer.tok("MF stuffs");
+		this->Sreceivers = std::vector<int>(this->nnodes,-1);
+		this->Sstack = std::vector<size_t>(this->nnodes,0);
+		for(int i=0;i<this->nnodes; ++i)
+			this->Sreceivers[i] = i;
+		this->Sdistance2receivers = std::vector<double >(this->nnodes,-1);
+		
+		this->SS = std::vector<double>(this->nnodes,0.);
+
+		neighbourer.build_smgraph_SS_only_SS(topography, this->Sreceivers, this->Sdistance2receivers, SS);
+
+		this->compute_SF_donors_from_receivers();
+
+		this->compute_TO_SF_stack_version();
 
 
 		return format_output(faketopo);
@@ -274,44 +443,45 @@ public:
 	template<class Neighbourer_t,class topo_t, class out_t>
 	out_t compute_graph_OMP(std::string depression_solver, topo_t& ttopography, Neighbourer_t& neighbourer)
 	{
-		py::gil_scoped_release release;
-		// std::cout << "made it here -2" << std::endl;
-		auto topography = format_input(ttopography);
-		// std::cout << "made it here -1,9" << std::endl;
-		add_noise_to_vector(topography,-1e-6,1e-6);
-		// std::cout << "made it here -1" << std::endl;
+		// py::gil_scoped_release release;
+		// // std::cout << "made it here -2" << std::endl;
+		// auto topography = format_input(ttopography);
+		// // std::cout << "made it here -1,9" << std::endl;
+		// add_noise_to_vector(topography,-1e-6,1e-6);
+		// // std::cout << "made it here -1" << std::endl;
 
-		this->isrec = std::vector<bool>(int(this->nnodes * this->n_neighbours/2), false);
-		this->Sreceivers = std::vector<int>(this->nnodes,-1);
-		for(int i=0;i<this->nnodes; ++i)
-			this->Sreceivers[i] = i;
-		this->Sdistance2receivers = std::vector<double >(this->nnodes,-1);
+		// this->isrec = std::vector<bool>(int(this->nnodes * this->n_neighbours/2), false);
+		// this->Sreceivers = std::vector<int>(this->nnodes,-1);
+		// for(int i=0;i<this->nnodes; ++i)
+		// 	this->Sreceivers[i] = i;
+		// this->Sdistance2receivers = std::vector<double >(this->nnodes,-1);
 		
-		std::vector<double> SS(this->nnodes,0.);
-		neighbourer.build_smgraph_SS_only_SS_OMP(topography, this->Sreceivers, this->Sdistance2receivers, SS);
-		this->recompute_SF_donors_from_receivers();
-		this->compute_TO_SF_stack_version();
+		// std::vector<double> SS(this->nnodes,0.);
+		// neighbourer.build_smgraph_SS_only_SS_OMP(topography, this->Sreceivers, this->Sdistance2receivers, SS);
+		// this->compute_SF_donors_from_receivers();
+		// this->compute_TO_SF_stack_version();
 
-		this->solve_depressions( depression_solver, neighbourer, topography);
-		std::vector<double> faketopo = to_vec(topography);
+		// this->solve_depressions( depression_solver, neighbourer, topography);
+		// std::vector<double> faketopo = to_vec(topography);
 
-		this->compute_TO_SF_stack_version();
+		// this->compute_TO_SF_stack_version();
 
-		if(depression_solver == "carve")
-		{
-			this->carve_topo(1e-3,neighbourer,faketopo);
+		// if(depression_solver == "carve")
+		// {
+		// 	this->carve_topo(1e-3,neighbourer,faketopo);
 
-		}
-		else if (depression_solver == "fill")
-			this->fill_topo(1e-3,neighbourer,faketopo);
+		// }
+		// else if (depression_solver == "fill")
+		// 	this->fill_topo(1e-3,neighbourer,faketopo);
 
 
-		neighbourer.build_smgraph_only_MF_OMP(faketopo, this->isrec);
+		// neighbourer.build_smgraph_only_MF_OMP(faketopo, this->isrec);
 		
-		this->compute_MF_topological_order_insort(faketopo);
-		py::gil_scoped_acquire acquire;
+		// this->compute_MF_topological_order_insort(faketopo);
+		// py::gil_scoped_acquire acquire;
 		
-		return format_output(faketopo);
+		// return format_output(faketopo);
+		return format_output(ttopography);
 	}
 
 	template<class Neighbourer_t,class topo_t, class out_t>
@@ -322,10 +492,10 @@ public:
 		for(int i=0;i<this->nnodes; ++i)
 			this->Sreceivers[i] = i;
 
-		std::vector<double> SS(this->nnodes,0.);
+		this->SS = std::vector<double>(this->nnodes,0.);
 
 		neighbourer.build_smgraph_SS_only_SS(topography, this->Sreceivers, this->Sdistance2receivers, SS);
-		this->recompute_SF_donors_from_receivers();
+		this->compute_SF_donors_from_receivers();
 		
 		this->compute_TO_SF_stack_version();
 		
@@ -348,6 +518,270 @@ public:
 	}
 
 
+
+
+	template<class Neighbourer_t, class topo_t>
+	void compute_graph_single_solo( topo_t& ttopography, Neighbourer_t& neighbourer)
+	{
+		
+		auto topography = format_input(ttopography);
+
+		this->Sreceivers = std::vector<int>(this->nnodes,-1);
+		this->Sstack = std::vector<size_t>(this->nnodes,0);
+		for(int i=0;i<this->nnodes; ++i)
+			this->Sreceivers[i] = i;
+
+		this->Sdistance2receivers = std::vector<double >(this->nnodes,-1);
+		
+		this->SS = std::vector<double>(this->nnodes,0.);
+
+		neighbourer.build_smgraph_SS_only_SS(topography, this->Sreceivers, this->Sdistance2receivers, SS);
+
+		this->compute_SF_donors_from_receivers();
+
+		this->compute_TO_SF_stack_version();
+
+	}
+
+	template<class Neighbourer_t, class topo_t>
+	void update_graph_single_solo( topo_t& ttopography, Neighbourer_t& neighbourer)
+	{
+		
+		auto topography = format_input(ttopography);
+
+		for(int i=0;i<this->nnodes; ++i)
+		{
+			this->Sreceivers[i] = i;		
+			this->SS[i] = 0;
+			this->Sdistance2receivers[i] = -1;
+		}
+		
+		neighbourer.build_smgraph_SS_only_SS(topography, this->Sreceivers, this->Sdistance2receivers, this->SS);
+
+		this->recompute_SF_donors_from_receivers();
+
+		this->compute_TO_SF_stack_version();
+	}
+
+	template<class Neighbourer_t, class topo_t>
+	void compute_graph_multi_solo( topo_t& ttopography, Neighbourer_t& neighbourer)
+	{
+		
+		auto topography = format_input(ttopography);
+		this->isrec = std::vector<bool>(int(this->nnodes * this->n_neighbours/2), false);
+		neighbourer.build_smgraph_only_MF(topography, this->isrec);
+		this->compute_MF_topological_order_insort(topography);
+	}
+
+	template<class Neighbourer_t, class topo_t>
+	void update_graph_multi_solo( topo_t& ttopography, Neighbourer_t& neighbourer)
+	{		
+		auto topography = format_input(ttopography);
+		neighbourer.build_smgraph_only_MF(topography, this->isrec);
+		this->compute_MF_topological_order_insort(topography);
+	}
+
+
+	template<class Neighbourer_t, class topo_t>
+	void compute_graph_both_solo( topo_t& ttopography, Neighbourer_t& neighbourer)
+	{
+		
+		auto topography = format_input(ttopography);
+		this->isrec = std::vector<bool>(int(this->nnodes * this->n_neighbours/2), false);
+		this->Sreceivers = std::vector<int>(this->nnodes,-1);
+		this->Sstack = std::vector<size_t>(this->nnodes,0);
+		this->Sdistance2receivers = std::vector<double >(this->nnodes,-1);
+		this->SS = std::vector<double>(this->nnodes,0.);
+
+		for(int i=0;i<this->nnodes; ++i)
+			this->Sreceivers[i] = i;
+		
+		neighbourer.build_smgraph_only_MF(topography, this->isrec);
+		neighbourer.buildSrecfromIsrec(topography, this->isrec, this->Sreceivers, this->SS);
+		this->compute_SF_donors_from_receivers();
+		this->compute_TO_SF_stack_version();
+		this->compute_MF_topological_order_insort(topography);
+	}
+
+	template<class Neighbourer_t, class topo_t>
+	void update_graph_both_solo( topo_t& ttopography, Neighbourer_t& neighbourer)
+	{		
+		auto topography = format_input(ttopography);
+
+		for(int i=0;i<this->nnodes; ++i)
+		{
+			this->SS[i] = 0;
+			this->Sreceivers[i] = i;
+		}
+		
+		neighbourer.build_smgraph_only_MF(topography, this->isrec);
+		neighbourer.buildSrecfromIsrec(topography, this->isrec, this->Sreceivers, this->SS);
+
+		this->compute_TO_SF_stack_version();
+		this->compute_MF_topological_order_insort(topography);
+	}
+
+
+	template<class Neighbourer_t,class topo_t>
+	std::vector<double> integrated_simple_fill(topo_t& ttopography, Neighbourer_t& neighbourer)
+	{
+		auto topography = format_input(ttopography);
+
+		std::vector<bool> isdep(this->nnodes, false);
+		int ndep = 0;
+		for(int i=0; i<this->nnodes;++i)
+		{
+			int node = this->Sstack[i];
+
+			if(neighbourer.is_active(node) && this->Sreceivers[node] == node)
+			{
+				// std::cout << node << std::endl;
+				isdep[node] = true;
+				++ndep;
+			}
+
+			isdep[node] = isdep[this->Sreceivers[node]];
+		}
+		std::cout << "There are " << ndep << " depressions vs " << this->nnodes << std::endl;
+
+		std::vector<double> faketopo = to_vec(topography);
+
+		// std::cout << "WABUNDEBUG1 " << std::endl;
+		neighbourer.fill_connected_component(isdep, ndep, faketopo, this->Sreceivers);
+		// std::cout << "WABUNDEBUG2" << std::endl;
+
+		return faketopo;
+
+	}
+
+
+	template<class Neighbourer_t,class topo_t, class out_t>
+	out_t compute_graph_v4(topo_t& ttopography, Neighbourer_t& neighbourer)
+	{
+		auto topography = format_input(ttopography);
+		std::vector<double> faketopo = neighbourer.PriorityFlood_Wei2018(topography);
+		this->compute_graph_both_solo(faketopo,neighbourer);
+		return format_output(faketopo);
+	}
+
+	template<class Neighbourer_t,class topo_t, class out_t>
+	out_t compute_graph_v4_simple(topo_t& ttopography, Neighbourer_t& neighbourer)
+	{
+		auto topography = format_input(ttopography);
+		bool worked = true;
+		this->compute_graph_both_solo(topography,neighbourer);
+
+		// std::vector<double> faketopo(to_vec(topography));
+		std::vector<double> faketopo(this->nnodes);
+		for(int i=0; i< this->nnodes; ++i)
+			faketopo[i] = topography[i];
+		std::vector<bool> filled = neighbourer.simple_fill(faketopo,this->Sreceivers);
+
+		this->compute_graph_both_solo(faketopo,neighbourer);
+		// neighbourer.build_smgraph_only_MF_mask(faketopo, this->isrec,filled);
+		// neighbourer.buildSrecfromIsrec_mask(faketopo, this->isrec, this->Sreceivers, this->SS,filled);
+		// this->compute_SF_donors_from_receivers();
+		// this->compute_TO_SF_stack_version();
+		// this->compute_MF_topological_order_insort(faketopo);
+
+		for(int i = 0; i < this->nnodes; ++i)
+		{
+			if(neighbourer.is_active(i) && i == this->Sreceivers[i])
+				worked = false;
+		}
+
+
+		if(worked == false)
+		{
+			std::cout << "Backing up" << std::endl;
+			auto out = this->compute_graph_v4<Neighbourer_t,std::vector<double>, py::array >(faketopo,neighbourer);
+			return format_output(out);
+		}
+
+
+		return format_output(faketopo);
+	}
+
+	template<class Neighbourer_t,class topo_t, class out_t>
+	out_t compute_graph_v4_SF(topo_t& ttopography, Neighbourer_t& neighbourer)
+	{
+		auto topography = format_input(ttopography);
+		this->compute_graph_single_solo(topography,neighbourer);
+		std::vector<double> faketopo = this->integrated_simple_fill(topography,neighbourer);
+		this->recompute_SF_donors_from_receivers();
+		this->compute_TO_SF_stack_version();
+		return format_output(faketopo);
+	}
+	template<class Neighbourer_t,class topo_t, class out_t>
+	out_t update_graph_v4_SF(topo_t& ttopography, Neighbourer_t& neighbourer)
+	{
+		auto topography = format_input(ttopography);
+		this->update_graph_single_solo(topography,neighbourer);
+		std::vector<double> faketopo = this->integrated_simple_fill(topography,neighbourer);
+		this->recompute_SF_donors_from_receivers();
+		this->compute_TO_SF_stack_version();
+		return format_output(faketopo);
+	}
+
+	template<class Neighbourer_t,class topo_t, class out_t>
+	out_t update_graph_v4(topo_t& ttopography, Neighbourer_t& neighbourer)
+	{
+		auto topography = format_input(ttopography);
+		this->update_graph_single_solo(topography,neighbourer);
+		std::vector<double> faketopo = this->integrated_simple_fill(topography,neighbourer);
+		this->update_graph_multi_solo(faketopo,neighbourer);
+		return format_output(faketopo);
+	}
+
+
+	template<class Neighbourer_t,class topo_t, class out_t>
+	out_t compute_graph_v5(std::string method,  topo_t& ttopography, Neighbourer_t& neighbourer)
+	{
+
+		ocarina timer;
+		auto topography = format_input(ttopography);
+		this->compute_graph_single_solo(topography,neighbourer);
+		timer.tik();
+		this->solve_depressions(method,neighbourer,topography);
+		// this->recompute_SF_donors_from_receivers();
+		this->compute_TO_SF_stack_version();
+		std::vector<double> faketopo = std::vector<double>(to_vec(topography));
+		this->fill_topo(1e-3,neighbourer,faketopo);
+		add_noise_to_vector(topography, -1e-6, 1e-6);
+
+		timer.tok("Fulldepsolve::");
+		this->compute_graph_multi_solo(faketopo,neighbourer);
+
+		return format_output(faketopo);
+
+	}
+
+	template<class Neighbourer_t,class topo_t, class out_t>
+	out_t update_graph_v5(std::string method,  topo_t& ttopography, Neighbourer_t& neighbourer)
+	{
+
+		ocarina timer;
+		auto topography = format_input(ttopography);
+		timer.tik();
+		add_noise_to_vector(topography, -1e-6, 1e-6);
+		timer.tok("random");
+		this->update_graph_single_solo(topography,neighbourer);
+		timer.tik();
+		this->solve_depressions(method,neighbourer,topography);
+		this->recompute_SF_donors_from_receivers();
+		this->compute_TO_SF_stack_version();
+		std::vector<double> faketopo = to_vec(topography);
+		this->fill_topo(1e-4,neighbourer,faketopo);
+		timer.tok("Fulldepsolve::");
+		this->update_graph_multi_solo(faketopo,neighbourer);
+
+		return format_output(faketopo);
+
+	}
+
+
+
+
 	template<class topo_t>
 	void compute_MF_topological_order_insort(topo_t& ttopography)
 	{
@@ -359,13 +793,12 @@ public:
 
 	}
 
-	void recompute_SF_donors_from_receivers()
+	void compute_SF_donors_from_receivers()
 	{
 		// Initialising the graph dimesions for the donors
 		// All of thenm have the graph dimension
-		this->Sdonors = std::vector< std::vector<int> >(this->nnodes);
-		for(auto&v:this->Sdonors)
-			v.reserve(8);
+		this->Sdonors = std::vector<int>(this->nnodes * 8,-1);
+		this->nSdonors = std::vector<int>(this->nnodes,0);
 
 		for(int i=0; i < this->nnodes; ++i)
 		{
@@ -373,10 +806,34 @@ public:
 			int trec = this->Sreceivers[i];
 			if(trec == i)
 				continue;
-			this->Sdonors[trec].emplace_back(i);
+
+			this->Sdonors[trec * 8  + this->nSdonors[trec]] = i;
+			this->nSdonors[trec] += 1;
 		}
+
 	}
 
+	void recompute_SF_donors_from_receivers()
+	{
+
+		for(int i=0; i < this->nnodes; ++i)
+		{
+			for(int j=0; j<8; ++j)
+				this->Sdonors[i * 8 + j] = -1;
+			this->nSdonors[i] = 0;
+		}
+
+		for(int i=0; i < this->nnodes; ++i)
+		{
+			// SF so rid == i cause there is only 1 rec
+			int trec = this->Sreceivers[i];
+			if(trec == i)
+				continue;
+			this->Sdonors[trec * 8  + this->nSdonors[trec]] = i;
+			this->nSdonors[trec] += 1;
+		}
+
+	}
 
 	template<class Neighbourer_t, class topo_t>
 	void solve_depressions(std::string& depression_solver , Neighbourer_t& neighbourer, topo_t& ttopography)
@@ -389,6 +846,7 @@ public:
 
 		if(depsolver.npits > 0)
 		{
+			std::cout << "updating deps" << std::endl;
 			depsolver.update_receivers(depression_solver,neighbourer, topography, this->Sreceivers,  this->Sdistance2receivers, this->Sstack);
 			this->recompute_SF_donors_from_receivers();
 		}
@@ -396,21 +854,18 @@ public:
 
 	void compute_TO_SF_stack_version()
 	{
-		// Initialising the stack
-		this->Sstack.clear();
-		// reserving the amount of stuff
-		this->Sstack.reserve(this->nnodes);
-
 		// The stack container helper
 		std::stack<size_t, std::vector<size_t> > stackhelper;
 		// std::vector<bool> isdone(this->nnodes,false);
 		// going through all the nodes
+		int istack = 0;
 		for(int i=0; i<this->nnodes; ++i)
 		{
 			// if they are base level I include them in the stack
 			if(this->Sreceivers[i] == i)
 			{
 				stackhelper.emplace(i);
+				// ++istack;
 			}
 
 			// While I still have stuff in the stack helper
@@ -418,12 +873,13 @@ public:
 			{
 				// I get the next node and pop it from the stack helper
 				int nextnode = stackhelper.top();stackhelper.pop();
-				this->Sstack.emplace_back(nextnode);
+				this->Sstack[istack] = nextnode;
+				++istack;
 
 				// as well as all its donors which will be processed next
-				for( int j = 0; j < this->Sdonors[nextnode].size(); ++j)
+				for( int j = 0; j < this->nSdonors[nextnode]; ++j)
 				{
-					stackhelper.emplace(this->Sdonors[nextnode][j]);
+					stackhelper.emplace(this->Sdonors[nextnode*8 + j]);
 				}
 
 			}
@@ -453,8 +909,7 @@ public:
 			double dz = topography[node] - topography[rec];
 			if(dz <= 0)
 			{
-				double d2rec = this->Sdistance2receivers[node];
-				topography[rec] = topography[node] - slope;// * d2rec;
+				topography[rec] = topography[node] - slope + neighbourer.randu.get()* 1e-7;// * d2rec;
 			}
 
 		}
@@ -478,7 +933,7 @@ public:
 			if(dz <= 0)
 			{
 				double d2rec = this->Sdistance2receivers[node];
-				topography[node] = topography[rec] + slope;// * d2rec;
+				topography[node] = topography[rec] + slope + neighbourer.randu.get()* 1e-7;// * d2rec;
 			}
 		}
 	}
