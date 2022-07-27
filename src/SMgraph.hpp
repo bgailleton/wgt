@@ -99,10 +99,10 @@ public:
 	{
 		for(size_t i = 0; i<this->isrec.size(); ++i)
 		{
-			size_t from = i*2;
-			size_t to = from + 1;
+			int from = this->links[i*2];
+			int to = this->links[i*2 + 1];
 			
-			if(from < 0)
+			if(neighbourer.is_in_bound(from) == false || neighbourer.is_in_bound(to) == false)
 				continue;
 
 			if(topography[from] > topography[to])
@@ -120,10 +120,10 @@ public:
 			auto ilinks = neighbourer.get_ilinks_from_node(node);
 			for(auto i: ilinks)
 			{
-				size_t from = i*2;
-				size_t to = from + 1;
+				int from = this->links[i*2];
+				int to = this->links[i*2 + 1];
 				
-				if(from < 0)
+				if(neighbourer.is_in_bound(from) == false || neighbourer.is_in_bound(to) == false)
 					continue;
 
 				if(topography[from] > topography[to])
@@ -139,13 +139,16 @@ public:
 	{
 		for(size_t i = 0; i<this->isrec.size(); ++i)
 		{
-			size_t from = i*2;
-			size_t to = from + 1;
+			int from = this->links[i*2];
+			int to = this->links[i*2 + 1];
 			
-			if(from < 0)
+			if(neighbourer.is_in_bound(from) == false || neighbourer.is_in_bound(to) == false)
+			{
 				continue;
+			}
 
-			double slope = (topography[from] - topography[to])/neighbourer.get_dx_from_isrec_idx(i); 
+			double slope = (topography[from] - topography[to])/neighbourer.get_dx_from_isrec_idx(i);
+			// std::cout << from << "|" << to << "|";
 
 			if(slope>0)
 			{
@@ -169,7 +172,23 @@ public:
 
 
 		}
+
+
 	}
+
+	template<class out_t>
+	out_t test_Srecs()
+	{
+		std::vector<int> OUT(this->nnodes,0);
+		for(int i=0; i< this->nnodes;++i)
+		{
+			if(i !=  this->Sreceivers[i])
+				++OUT[i];
+		}
+
+		return format_output(OUT);
+	}
+
 
 
 
@@ -184,24 +203,41 @@ public:
 	template<class Neighbourer_t,class topo_t, class out_t>
 	out_t compute_graph_v6(std::string depression_solver, topo_t& ttopography, Neighbourer_t& neighbourer)
 	{
+		// std::cout << "DEBUGGRAPH6::1" << std::endl;
 		auto topography = format_input(ttopography);
+		// std::cout << "DEBUGGRAPH6::2" << std::endl;
 		this->update_recs(topography,neighbourer);
-		this->compute_SF_donors_from_receivers();
-		this->compute_TO_SF_stack_version();
-		LMRerouter_II depsolver;
-		bool need_recompute = depsolver.run(depression_solver, topography, neighbourer, this->Sreceivers, this->Sstack, this->links);
+		// std::cout << "DEBUGGRAPH6::3" << std::endl;
 		
-		if(need_recompute)
-		{
-			this->recompute_SF_donors_from_receivers();
-			this->compute_TO_SF_stack_version();
-			std::vector<double> faketopo(to_vec(topography));
-			std::vector<int> to_recompute = this->carve_topo_v2(1e-4,neighbourer,faketopo);
-			this->update_some_Mrecs(faketopo,neighbourer,to_recompute);
-			return format_output(faketopo);
-		}
-		else
-			return format_output(topography);	
+		this->compute_SF_donors_from_receivers();
+		// std::cout << "DEBUGGRAPH6::4" << std::endl;
+		
+		this->compute_TO_SF_stack_version();
+		// std::cout << "DEBUGGRAPH6::5" << std::endl;
+
+		std::vector<double> faketopo(to_vec(topography));
+		
+		// LMRerouter_II depsolver;
+		// bool need_recompute = depsolver.run(depression_solver, topography, neighbourer, this->Sreceivers, this->Sstack, this->links);
+		// std::cout << "DEBUGGRAPH6::6" << std::endl;
+
+		// if(need_recompute)
+		// {
+		
+		// 	this->recompute_SF_donors_from_receivers();
+		
+		// 	this->compute_TO_SF_stack_version();
+		
+		// 	
+		
+		// 	std::vector<int> to_recompute = this->carve_topo_v2(1e-4,neighbourer,faketopo);
+		
+		// 	this->update_some_Mrecs(faketopo,neighbourer,to_recompute);
+		
+		// 	return format_output(faketopo);
+		// }
+		// else
+			return format_output(faketopo);	
 
 	}
 
