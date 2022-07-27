@@ -2624,153 +2624,242 @@ public:
 	template<class topo_t, class Neighbourer_t>
 	bool run(std::string method, topo_t& topography, Neighbourer_t& neighbourer, std::vector<int>& Sreceivers, std::vector<size_t>& Sstack, std::vector<int>& links)
 	{
-		
+		std::cout << "DEBUGLM_II::1" <<std::endl;
+		// tracking the number of basins
 		this->nbas = -1;
+		// tracking to which basin each node belongs to
 		this->basins = std::vector<int>(neighbourer.nnodes,0);
+		// number of internal basins to reroute
 		int nbas2solve = 0;
+
+		// First comuting the basin array
 		for(int i=0; i<neighbourer.nnodes; ++i)
 		{
+			// getting the current nodes
 			size_t node = Sstack[i];
+
+			// If it is its own receiver, then
 			if(Sreceivers[node] == node)
 			{
-				++nbas;
+				// incrementing the basin label
+				++this->nbas;
+				// is it a base level
 				if(neighbourer.can_flow_out_there(node))
 				{
+					// then it is an open basin
 					this->is_open_basin.emplace_back(true);
+					// saving its pit node
 					this->pitnode.emplace_back(node);
 				}
 				else
 				{
+					// otherwise it is a basin to solve
 					++nbas2solve;
+					// not open
 					this->is_open_basin.emplace_back(false);
+					// saving its pit node
 					this->pitnode.emplace_back(node);
 				}
 			}
-			this->basins[node] = nbas;
+
+			// labelling the node
+			this->basins[node] = this->nbas;
 		}
 		
+		// need a last increment as first label is 0
 		++this->nbas;
 
-		for(int i=0; i<neighbourer.nnodes; ++i)
-			if(this->is_open_basin[this->basins[i]]) this->basins[i] = 0;
 
+		std::cout << "DEBUGLM_II::2" <<std::endl;
+
+		// Relabelling 0 all the open basins to gain time
+		for(int i=0; i<neighbourer.nnodes; ++i)
+		{
+			if(this->is_open_basin[this->basins[i]]) this->basins[i] = 0;
+		}
+
+		std::cout << "DEBUGLM_II::3" <<std::endl;
+		// if there is literally no basins to solve, then I am done
 		if(nbas2solve == 0)
 			return false;
 
+		// tracking the number of links between a basin to another
 		int nlinks = 0;
 
+		std::cout << "DEBUGLM_II::4" <<std::endl;
+		
+		// going through each and every link
 		for(int i=0; i<links.size(); ++i)
 		{
+			// if the link is not valid, I continue
 			if(links[i] < 0)
 			{
+				// REALLY IMPORTANT: incrementing i as i is a noe and i+1 its counterpart
 				++i;
 				continue;
 			}
 
+			// j is first index and k the next
 			int j = i;
 			int k = j+1;
+
+			// REALLY IMPORTANT: incrementing i as i is a noe and i+1 its counterpart
 			++i;
+			
+			// translating the nodes to basin IDs 
 			int bj = this->basins[links[j]];
 			int bk = this->basins[links[k]];
-			if(bj == bk || this->is_open_basin[bj] || this->is_open_basin[bk])
+
+			// if in same basin or both open -> I skip
+			if(bj == bk || (this->is_open_basin[bj] && this->is_open_basin[bk]) )
 				continue;
 
+			// The score is the minimum elevation of the pass
 			double score = std::min(topography[links[j]],topography[links[k]]);
+			// is bj < bk (the std::pair storing the pass always starts from the lowes to the highest by convention to keep the std::pair map keys unique)
 			bool bjmin = bj<bk;
+			// if (bj<bk) pair is {bj,bk} else {bk,bj} (I love ternary operators)
 			std::pair<int,int> tp = {(bjmin)?bj:bk, (bjmin)?bk:bj};
+			// is the pair already in the map-e
 			auto it_e = this->edges.find(tp);
 			if(it_e == this->edges.end())
 			{
+				// Nope.
+				// counting that link
 				++nlinks;
+				// registering the elev of the pass
 				this->edges[tp] = score;
+				// registering nodes of the pass
 				this->edges_nodes[tp] = std::pair<int,int>{(bjmin)?links[j]:links[k], (bjmin)?links[k]:links[j]};
 			}
 			else
 			{
+				// The basins are already connected
+				// Checking if the current connection is lower in Z
 				if(score < it_e->second)
 				{
+					// It is!
+					// registering the new score ...
 					it_e->second = score;
+					// ... and nodes
 					this->edges_nodes[it_e->first] = std::pair<int,int>{(bjmin)?links[j]:links[k], (bjmin)?links[k]:links[j]};
 				}
 			}
 		}
+		// Done with the link construction
 
+		std::cout << "DEBUGLM_II::5" <<std::endl;
+
+		// Gathering all the links in a vector
 		std::vector<PQ_helper<std::pair<int,int>, double > > basinlinks;basinlinks.reserve(nlinks);
 		for(auto it: this->edges)
 		{
 			basinlinks.emplace_back(PQ_helper<std::pair<int,int>, double >(it.first,it.second));
 		}
 
+		// And sorting it
 		std::sort(basinlinks.begin(), basinlinks.end());
+
+		// This will track which links are active or not
 		std::vector<bool> isactive(basinlinks.size(), false);
 
+
+		std::cout << "DEBUGLM_II::6" <<std::endl;
+
+
+		// This part is applying the kruskal algorithm (I think)
 		UnionFindv3<int, double, Neighbourer_t,topo_t, LMRerouter_II> uf(this->nbas, (*this) );
 
+		// trackng the receiver of all basins
 		this->receivers = std::vector<int>(this->nbas);
+		// and the subsequent node pair
 		this->receivers_node = std::vector<std::pair<int,int> >(this->nbas);
+		// init recs to themselves (base level)
 		for(int i =0; i<this->nbas; ++i)
 			this->receivers[i] = i;
 
-
+		// ok going through all the links from lowest pass to the highest
 		for(size_t i = 0; i < basinlinks.size(); ++i)
 		{
+			// getting next link
 			auto& next = basinlinks[i];
 
+			// getting basin IDs
 			int b0 = next.node.first;
 			int b1 = next.node.second;
 
+			// getting basin IDs unionised ☭
 			int fb0 = uf.Find(b0);
-			int fb1 = uf.Find(b1) ;
+			int fb1 = uf.Find(b1);
 
+			// If they are united, I skip (they already merged)
 			if (fb0 != fb1)
 			{
 
+				// if both are open, I skip
 				if(uf._open[fb0] && uf._open[fb1])
 					continue;
-				// std::cout << "GOUGN::" << b0 << "|" << b1 << "|" << this->nbas << std::endl;
 				
+				// Unification of both basin				
 				uf.Union(b0, b1);
+				// this link is active then
 				isactive[i] = true;
-				if(this->is_open_basin[basinlinks[i].node.first])
-				{
-					this->receivers[basinlinks[i].node.second] = basinlinks[i].node.first;
-					this->receivers_node[basinlinks[i].node.second] = std::pair<int,int>{this->edges_nodes[basinlinks[i].node].second ,this->edges_nodes[basinlinks[i].node].first};
-					this->is_open_basin[basinlinks[i].node.second] = true;
-				}
-				else if(this->is_open_basin[basinlinks[i].node.second])
-				{
-					this->receivers[basinlinks[i].node.first] = basinlinks[i].node.second;
-					this->receivers_node[basinlinks[i].node.first] = std::pair<int,int>{this->edges_nodes[basinlinks[i].node].first ,this->edges_nodes[basinlinks[i].node].second};
-					this->is_open_basin[basinlinks[i].node.first] = true;
-				}
+
+				// If basin one is open
+				// if(this->is_open_basin[basinlinks[i].node.first])
+				// {
+				// 	std::cout << "gulg" << std::endl;
+				// 	// rec of b2 is b1
+				// 	this->receivers[basinlinks[i].node.second] = basinlinks[i].node.first;
+				// 	// connecting node are node b2 to node b1
+				// 	this->receivers_node[basinlinks[i].node.second] = std::pair<int,int>{this->edges_nodes[basinlinks[i].node].second ,this->edges_nodes[basinlinks[i].node].first};
+				// 	// b2 is now open
+				// 	this->is_open_basin[basinlinks[i].node.second] = true;
+				// }
+				// else if(this->is_open_basin[basinlinks[i].node.second])
+				// {
+				// 	std::cout << "gulg" << std::endl;
+				// 	this->receivers[basinlinks[i].node.first] = basinlinks[i].node.second;
+				// 	this->receivers_node[basinlinks[i].node.first] = std::pair<int,int>{this->edges_nodes[basinlinks[i].node].first ,this->edges_nodes[basinlinks[i].node].second};
+				// 	this->is_open_basin[basinlinks[i].node.first] = true;
+				// }
 			}
 		}
+
+		std::cout << "DEBUGLM_II::7" <<std::endl;
 
 		while(true)
 		{
 			bool alltrue = true;
 			for(size_t i=0; i=basinlinks.size();++i)
 			{
+
+				int b1 = basinlinks[i].node.first, b2 = basinlinks[i].node.second;
 				
-				if(isactive[i] == false || (this->is_open_basin[basinlinks[i].node.first] && this->is_open_basin[basinlinks[i].node.second]))
+				if(isactive[i] == false || (this->is_open_basin[b1] && this->is_open_basin[b2]))
 					continue;
 
-				if(this->is_open_basin[basinlinks[i].node.first])
+				if(this->is_open_basin[b1])
 				{
-					this->receivers[basinlinks[i].node.second] = basinlinks[i].node.first;
-					this->is_open_basin[basinlinks[i].node.second] = true;
+					std::cout << "pluf" << std::endl;
+					this->receivers[b2] = b1;
+					this->is_open_basin[b2] = true;
 				}
-				else if(this->is_open_basin[basinlinks[i].node.second])
+				else if(this->is_open_basin[b2])
 				{
-					this->receivers[basinlinks[i].node.first] = basinlinks[i].node.second;
-					this->is_open_basin[basinlinks[i].node.first] = true;
+					std::cout << "pluf" << std::endl;
+					this->receivers[b1] = b2;
+					this->is_open_basin[b1] = true;
 				}
 				else
 					alltrue = false;
 			}
+
 			if(alltrue)
 				break;
 		}
+
+		std::cout << "DEBUGLM_II::8" <<std::endl;
 
 
 		this->donors = std::vector<std::vector<int> >(this->nbas, std::vector<int>());
@@ -2804,6 +2893,8 @@ public:
 				Sreceivers[from] = to;
 			}
 		}
+
+		std::cout << "DEBUGLM_II::9" <<std::endl;
 
 		return true;
 

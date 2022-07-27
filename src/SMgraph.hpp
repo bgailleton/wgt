@@ -217,26 +217,27 @@ public:
 
 		std::vector<double> faketopo(to_vec(topography));
 		
-		// LMRerouter_II depsolver;
-		// bool need_recompute = depsolver.run(depression_solver, topography, neighbourer, this->Sreceivers, this->Sstack, this->links);
-		// std::cout << "DEBUGGRAPH6::6" << std::endl;
+		LMRerouter_II depsolver;
+		std::cout << "DEBUGGRAPH6::prerun" << std::endl;
+		bool need_recompute = depsolver.run(depression_solver, topography, neighbourer, this->Sreceivers, this->Sstack, this->links);
+		std::cout << "DEBUGGRAPH6::postrun" << std::endl;
 
-		// if(need_recompute)
-		// {
+		if(need_recompute)
+		{
 		
-		// 	this->recompute_SF_donors_from_receivers();
+			this->recompute_SF_donors_from_receivers();
 		
-		// 	this->compute_TO_SF_stack_version();
+			this->compute_TO_SF_stack_version();
 		
-		// 	
+			
 		
-		// 	std::vector<int> to_recompute = this->carve_topo_v2(1e-4,neighbourer,faketopo);
+			std::vector<int> to_recompute = this->carve_topo_v2(1e-4,neighbourer,faketopo);
 		
-		// 	this->update_some_Mrecs(faketopo,neighbourer,to_recompute);
+			this->update_some_Mrecs(faketopo,neighbourer,to_recompute);
 		
-		// 	return format_output(faketopo);
-		// }
-		// else
+			return format_output(faketopo);
+		}
+		else
 			return format_output(faketopo);	
 
 	}
