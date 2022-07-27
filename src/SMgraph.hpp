@@ -93,6 +93,15 @@ public:
 		this->Sdistance2receivers = std::vector<double >(this->nnodes,-1);
 		this->SS = std::vector<double>(this->nnodes,0.);
 	}
+	void _reallocate_vectors()
+	{
+
+		for(int i=0;i<this->nnodes; ++i)
+		{
+			this->Sreceivers[i] = i;
+			this->SS[i] = 0;
+		}
+	}
 
 	template<class Neighbourer_t,class topo_t>
 	void update_Mrecs(topo_t& topography, Neighbourer_t& neighbourer)
@@ -200,11 +209,19 @@ public:
 		neighbourer.fill_links_SMG(this->links);
 	}
 
+	template<class Neighbourer_t>
+	void reinit_graph_v6(Neighbourer_t& neighbourer)
+	{
+		// Allocate vectors
+		this->_reallocate_vectors();
+	}
+
 	template<class Neighbourer_t,class topo_t, class out_t>
 	out_t compute_graph_v6(std::string depression_solver, topo_t& ttopography, Neighbourer_t& neighbourer)
 	{
 		// std::cout << "DEBUGGRAPH6::1" << std::endl;
 		auto topography = format_input(ttopography);
+		this->reinit_graph_v6(neighbourer);
 		// std::cout << "DEBUGGRAPH6::2" << std::endl;
 		this->update_recs(topography,neighbourer);
 		// std::cout << "DEBUGGRAPH6::3" << std::endl;
@@ -218,9 +235,9 @@ public:
 		std::vector<double> faketopo(to_vec(topography));
 		
 		LMRerouter_II depsolver;
-		std::cout << "DEBUGGRAPH6::prerun" << std::endl;
+		// std::cout << "DEBUGGRAPH6::prerun" << std::endl;
 		bool need_recompute = depsolver.run(depression_solver, topography, neighbourer, this->Sreceivers, this->Sstack, this->links);
-		std::cout << "DEBUGGRAPH6::postrun" << std::endl;
+		// std::cout << "DEBUGGRAPH6::postrun" << std::endl;
 
 		if(need_recompute)
 		{
@@ -229,16 +246,23 @@ public:
 		
 			this->compute_TO_SF_stack_version();
 		
-			
-		
 			std::vector<int> to_recompute = this->carve_topo_v2(1e-4,neighbourer,faketopo);
+			// std::cout << "sizetorecom::" << to_recompute.size() <<  std::endl;
+			
+			this->compute_MF_topological_order_insort(faketopo);
 		
 			this->update_some_Mrecs(faketopo,neighbourer,to_recompute);
-		
+			// this->update_recs(faketopo,neighbourer);
+
+
 			return format_output(faketopo);
 		}
 		else
+		{
+			// std::cout << "nodep" << std::endl;
+			this->compute_MF_topological_order_insort(faketopo);
 			return format_output(faketopo);	
+		}
 
 	}
 
