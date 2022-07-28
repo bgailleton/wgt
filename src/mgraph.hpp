@@ -172,50 +172,50 @@ public:
 		// std::cout << "ASDFdsfa->1" << std::endl;
 		auto topography = format_input(ttopography);
 
-		auto t1 = high_resolution_clock::now();
+		// auto t1 = high_resolution_clock::now();
 		this->compute_graph_both_v2(neighbourer,topography);
-		auto t2 = high_resolution_clock::now();
-		duration<double, std::milli> ms_double = t2 - t1;
-		double time_compute_graph_both_v2 = ms_double.count();
+		// auto t2 = high_resolution_clock::now();
+		// duration<double, std::milli> ms_double = t2 - t1;
+		// double time_compute_graph_both_v2 = ms_double.count();
 		// std::cout << "ASDFdsfa->2" << std::endl;
 		
-		t1 = high_resolution_clock::now();
+		// t1 = high_resolution_clock::now();
 		this->compute_TO_SF_stack_version();
-		t2 = high_resolution_clock::now();
-		ms_double = t2 - t1;
-		double time_compute_TO_SF_stack_version1 = ms_double.count();
+		// t2 = high_resolution_clock::now();
+		// ms_double = t2 - t1;
+		// double time_compute_TO_SF_stack_version1 = ms_double.count();
 
 		// std::cout << "ASDFdsfa->3" << std::endl;
 		std::vector<double> faketopo = to_vec(topography);
 
 		if(depression_solver != "none")
 		{
-			t1 = high_resolution_clock::now();
+			// t1 = high_resolution_clock::now();
 
 			this->solve_depressions(depression_solver, neighbourer, topography);
-			t2 = high_resolution_clock::now();
-			ms_double = t2 - t1;
-			double time_solve_depressions = ms_double.count();
+			// t2 = high_resolution_clock::now();
+			// ms_double = t2 - t1;
+			// double time_solve_depressions = ms_double.count();
 
-			t1 = high_resolution_clock::now();
+			// t1 = high_resolution_clock::now();
 			this->compute_TO_SF_stack_version();
-			t2 = high_resolution_clock::now();
-			ms_double = t2 - t1;
-			double time_compute_TO_SF_stack_version2 = ms_double.count();
+			// t2 = high_resolution_clock::now();
+			// ms_double = t2 - t1;
+			// double time_compute_TO_SF_stack_version2 = ms_double.count();
 
-			t1 = high_resolution_clock::now();
+			// t1 = high_resolution_clock::now();
 			if(depression_solver == "fill")
 				this->fill_topo(1e-3,neighbourer,faketopo);
 			else
 				this->carve_topo(1e-3,neighbourer,faketopo);
 			// this->carve_topo(1e-3,neighbourer,faketopo);
-			t2 = high_resolution_clock::now();
-			ms_double = t2 - t1;
-			double time_carve_topo = ms_double.count();
+			// t2 = high_resolution_clock::now();
+			// ms_double = t2 - t1;
+			// double time_carve_topo = ms_double.count();
 
 
 
-			t1 = high_resolution_clock::now();
+			// t1 = high_resolution_clock::now();
 			// this->receivers.clear();
 			// this->donors.clear();
 			// this->distance2receivers.clear();
@@ -224,17 +224,17 @@ public:
 			// this->distance2receivers = std::vector<std::vector<T> >(this->nnodes);
 			// neighbourer.rebuild_mgraph_after_solving_depression(Sdonors, Sreceivers, receivers,donors, Sdistance2receivers, distance2receivers, faketopo);
 			this->update_receivers_v2(faketopo);
-			t2 = high_resolution_clock::now();
-			ms_double = t2 - t1;
-			double time_rebuild_mgraph = ms_double.count();
+			// t2 = high_resolution_clock::now();
+			// ms_double = t2 - t1;
+			// double time_rebuild_mgraph = ms_double.count();
 
 
-			t1 = high_resolution_clock::now();
+			// t1 = high_resolution_clock::now();
 			// this->compute_MF_topological_order();
 			this->compute_MF_topological_order_insort(faketopo);
-			t2 = high_resolution_clock::now();
-			ms_double = t2 - t1;
-			double time_compute_MF_topological_order = ms_double.count();
+			// t2 = high_resolution_clock::now();
+			// ms_double = t2 - t1;
+			// double time_compute_MF_topological_order = ms_double.count();
 
 		// std::cout << "ASDFdsfa->4" << std::endl;
 		// std::cout << "ASDFdsfa->5" << std::endl;
@@ -260,51 +260,51 @@ public:
 		// std::cout << "ASDFdsfa->1" << std::endl;
 		auto topography = format_input(ttopography);
 
-		auto t1 = high_resolution_clock::now();
+		// auto t1 = high_resolution_clock::now();
 		this->compute_graph_both_v2_OMP(neighbourer,topography, n_proc);
-		auto t2 = high_resolution_clock::now();
-		duration<double, std::milli> ms_double = t2 - t1;
-		double time_compute_graph_both_v2 = ms_double.count();
+		// auto t2 = high_resolution_clock::now();
+		// duration<double, std::milli> ms_double = t2 - t1;
+		// double time_compute_graph_both_v2 = ms_double.count();
 		// std::cout << "ASDFdsfa->2" << std::endl;
 		
-		t1 = high_resolution_clock::now();
+		// t1 = high_resolution_clock::now();
 		this->compute_TO_SF_stack_version();
-		t2 = high_resolution_clock::now();
-		ms_double = t2 - t1;
-		double time_compute_TO_SF_stack_version1 = ms_double.count();
+		// t2 = high_resolution_clock::now();
+		// ms_double = t2 - t1;
+		// double time_compute_TO_SF_stack_version1 = ms_double.count();
 
 		// std::cout << "ASDFdsfa->3" << std::endl;
 		std::vector<double> faketopo = to_vec(topography);
 		if(depression_solver != "none")
 		{
-			t1 = high_resolution_clock::now();
+			// t1 = high_resolution_clock::now();
 
 			this->solve_depressions(depression_solver, neighbourer, topography);
-			t2 = high_resolution_clock::now();
-			ms_double = t2 - t1;
-			double time_solve_depressions = ms_double.count();
+			// t2 = high_resolution_clock::now();
+			// ms_double = t2 - t1;
+			// double time_solve_depressions = ms_double.count();
 
-			t1 = high_resolution_clock::now();
+			// t1 = high_resolution_clock::now();
 			this->compute_TO_SF_stack_version();
-			t2 = high_resolution_clock::now();
-			ms_double = t2 - t1;
-			double time_compute_TO_SF_stack_version2 = ms_double.count();
+			// t2 = high_resolution_clock::now();
+			// ms_double = t2 - t1;
+			// double time_compute_TO_SF_stack_version2 = ms_double.count();
 
 
 
-			t1 = high_resolution_clock::now();
+			// t1 = high_resolution_clock::now();
 			if(depression_solver == "fill")
 				this->fill_topo(1e-3,neighbourer,faketopo);
 			else
 				this->carve_topo(1e-3,neighbourer,faketopo);
 			// this->carve_topo(1e-3,neighbourer,faketopo);
-			t2 = high_resolution_clock::now();
-			ms_double = t2 - t1;
-			double time_carve_topo = ms_double.count();
+			// t2 = high_resolution_clock::now();
+			// ms_double = t2 - t1;
+			// double time_carve_topo = ms_double.count();
 
 
 
-			t1 = high_resolution_clock::now();
+			// t1 = high_resolution_clock::now();
 			// this->receivers.clear();
 			// this->donors.clear();
 			// this->distance2receivers.clear();
@@ -313,17 +313,17 @@ public:
 			// this->distance2receivers = std::vector<std::vector<T> >(this->nnodes);
 			// neighbourer.rebuild_mgraph_after_solving_depression(Sdonors, Sreceivers, receivers,donors, Sdistance2receivers, distance2receivers, faketopo);
 			this->update_receivers_v2(faketopo);
-			t2 = high_resolution_clock::now();
-			ms_double = t2 - t1;
-			double time_rebuild_mgraph = ms_double.count();
+			// t2 = high_resolution_clock::now();
+			// ms_double = t2 - t1;
+			// double time_rebuild_mgraph = ms_double.count();
 
 
-			t1 = high_resolution_clock::now();
+			// t1 = high_resolution_clock::now();
 			// this->compute_MF_topological_order();
 			this->compute_MF_topological_order_insort(faketopo);
-			t2 = high_resolution_clock::now();
-			ms_double = t2 - t1;
-			double time_compute_MF_topological_order = ms_double.count();
+			// t2 = high_resolution_clock::now();
+			// ms_double = t2 - t1;
+			// double time_compute_MF_topological_order = ms_double.count();
 
 		// std::cout << "ASDFdsfa->4" << std::endl;
 		// std::cout << "ASDFdsfa->5" << std::endl;
@@ -345,54 +345,54 @@ public:
 	{
 		// std::cout << "ASDFdsfa->1" << std::endl;
 		auto topography = format_input(ttopography);
-		auto t1 = high_resolution_clock::now();
+		// auto t1 = high_resolution_clock::now();
 		// this->compute_graph_both_v2(neighbourer,topography);
 		this->update_receivers_v2(topography);
 		this->update_Srecs_from_recs(topography, neighbourer);
 		this->recompute_SF_donors_from_receivers();
 
-		auto t2 = high_resolution_clock::now();
-		duration<double, std::milli> ms_double = t2 - t1;
-		double time_compute_graph_both_v2 = ms_double.count();
+		// auto t2 = high_resolution_clock::now();
+		// duration<double, std::milli> ms_double = t2 - t1;
+		// double time_compute_graph_both_v2 = ms_double.count();
 		// std::cout << "ASDFdsfa->2" << std::endl;
 		
-		t1 = high_resolution_clock::now();
+		// t1 = high_resolution_clock::now();
 		this->compute_TO_SF_stack_version();
-		t2 = high_resolution_clock::now();
-		ms_double = t2 - t1;
-		double time_compute_TO_SF_stack_version1 = ms_double.count();
+		// t2 = high_resolution_clock::now();
+		// ms_double = t2 - t1;
+		// double time_compute_TO_SF_stack_version1 = ms_double.count();
 
 		// std::cout << "ASDFdsfa->3" << std::endl;
 		std::vector<double> faketopo = to_vec(topography);
 		if(depression_solver != "none")
 		{
-			t1 = high_resolution_clock::now();
+			// t1 = high_resolution_clock::now();
 
 			this->solve_depressions(depression_solver, neighbourer, topography);
-			t2 = high_resolution_clock::now();
-			ms_double = t2 - t1;
-			double time_solve_depressions = ms_double.count();
+			// t2 = high_resolution_clock::now();
+			// ms_double = t2 - t1;
+			// double time_solve_depressions = ms_double.count();
 
-			t1 = high_resolution_clock::now();
+			// t1 = high_resolution_clock::now();
 			this->compute_TO_SF_stack_version();
-			t2 = high_resolution_clock::now();
-			ms_double = t2 - t1;
-			double time_compute_TO_SF_stack_version2 = ms_double.count();
+			// t2 = high_resolution_clock::now();
+			// ms_double = t2 - t1;
+			// double time_compute_TO_SF_stack_version2 = ms_double.count();
 
 
 
-			t1 = high_resolution_clock::now();
+			// t1 = high_resolution_clock::now();
 			if(depression_solver == "fill")
 				this->fill_topo(1e-3,neighbourer,faketopo);
 			else
 				this->carve_topo(1e-3,neighbourer,faketopo);
-			t2 = high_resolution_clock::now();
-			ms_double = t2 - t1;
-			double time_carve_topo = ms_double.count();
+			// t2 = high_resolution_clock::now();
+			// ms_double = t2 - t1;
+			// double time_carve_topo = ms_double.count();
 
 
 
-			t1 = high_resolution_clock::now();
+			// t1 = high_resolution_clock::now();
 			// this->receivers.clear();
 			// this->donors.clear();
 			// this->distance2receivers.clear();
@@ -401,9 +401,9 @@ public:
 			// this->distance2receivers = std::vector<std::vector<T> >(this->nnodes);
 			// neighbourer.rebuild_mgraph_after_solving_depression(Sdonors, Sreceivers, receivers,donors, Sdistance2receivers, distance2receivers, faketopo);
 			this->update_receivers_v2(faketopo);
-			t2 = high_resolution_clock::now();
-			ms_double = t2 - t1;
-			double time_rebuild_mgraph = ms_double.count();
+			// t2 = high_resolution_clock::now();
+			// ms_double = t2 - t1;
+			// double time_rebuild_mgraph = ms_double.count();
 
 			int Ndef = 0;
 			for(int i =0 ;i< this->nnodes; ++i)
@@ -421,12 +421,12 @@ public:
 				std::cout << "SOMETHING WRONG HERE" << std::endl;
 
 
-			t1 = high_resolution_clock::now();
+			// t1 = high_resolution_clock::now();
 			// this->compute_MF_topological_order();
 			this->recompute_MF_topological_order_insort(faketopo);
-			t2 = high_resolution_clock::now();
-			ms_double = t2 - t1;
-			double time_compute_MF_topological_order = ms_double.count();
+			// t2 = high_resolution_clock::now();
+			// ms_double = t2 - t1;
+			// double time_compute_MF_topological_order = ms_double.count();
 
 		// std::cout << "ASDFdsfa->4" << std::endl;
 		// std::cout << "ASDFdsfa->5" << std::endl;

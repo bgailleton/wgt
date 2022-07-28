@@ -509,8 +509,8 @@ public:
 			// Getting the local vertical motion to equilibrate to
 			float tU = (this->vmmode == 0)? this->uvertmot:this->vertmot[node];
 
-			bool hillslopeSc = false;
-			bool fluvialSPL = false;
+			// bool hillslopeSc = false;
+			// bool fluvialSPL = false;
 
 			// Stpping here if flow opti or base level checkers tells so
 			if(pixeltype[node] == 0)

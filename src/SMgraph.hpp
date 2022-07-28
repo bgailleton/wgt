@@ -1125,7 +1125,7 @@ public:
 
 			if(dz <= 0)
 			{
-				double d2rec = this->Sdistance2receivers[node];
+				// double d2rec = this->Sdistance2receivers[node];
 				topography[node] = topography[rec] + slope + neighbourer.randu.get()* 1e-7;// * d2rec;
 			}
 		}

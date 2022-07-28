@@ -2072,7 +2072,6 @@ public:
 				{
 					if (dzdy > 0) aspect_rad = pi/2;
 					else if (dzdy < 0) aspect_rad = 2 * pi - pi/2;
-					else aspect_rad = aspect_rad;
 				}
 
 				hillshade[i] = ((std::cos(zenith_rad) * std::cos(slope_rad)) + (std::sin(zenith_rad) * std::sin(slope_rad) * std::cos(azimuth_rad - aspect_rad)));
