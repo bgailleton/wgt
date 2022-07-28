@@ -1,4 +1,5 @@
 import numpy as np
+import numexpr as ne
 import pywtt as pw
 import cppwtt as cw
 import math
@@ -78,6 +79,8 @@ class FastFlood(object):
 		self.cbar = None
 		self.hwim = None
 
+		self.mask = np.asarray(self.dem.neighbourer.get_mask_array(), dtype = bool)
+
 
 	def run(self, dt = 1e-3, graph_mode = 'multi_opti'):
 		'''
@@ -92,10 +95,12 @@ class FastFlood(object):
 		# 	filled = self.graph.compute_graph_v4(topohw,self.dem.neighbourer)
 		# elif(graph_mode == 'reduced'):
 		# 	filled = self.graph.compute_graph_v4_simple(topohw,self.dem.neighbourer)
-		if(graph_mode == 'multi_opti'):
-			filled = self.graph.compute_graph_multi_filled(topohw,self.dem.neighbourer)
-		elif(graph_mode == 'carve'):
-			filled = self.graph.compute_graph_v5("carve",topohw,self.dem.neighbourer)
+		# if(graph_mode == 'multi_opti'):
+		# 	filled = self.graph.compute_graph_multi_filled(topohw,self.dem.neighbourer)
+		# elif(graph_mode == 'carve'):
+		# 	filled = self.graph.compute_graph_v5("carve",topohw,self.dem.neighbourer)
+		filled = self.graph.compute_graph_v6("fill",topohw,self.dem.neighbourer)
+
 
 		# initilising internal array ifnot done yet (it needs the graph to have been calculated at least once so it is unsafe to do it at build time)
 		if(self._Sw is None):
@@ -109,6 +114,7 @@ class FastFlood(object):
 
 		self._Sw.fill(1e-6)
 		self._susmt.fill(0)
+
 		cw.compute_Sw_sumslopes(self.graph, self.dem.neighbourer, self.hw, self.dem.data, self._Sw, self._susmt)
 		# Calculating the difference of water height
 		cw.run_multi_fastflood_static(self.graph, self.dem.neighbourer, self.hw, self.dem.data, self.manning, self.precipitations,self.Qwin,self.Qwout, self._Sw, self._susmt)
@@ -120,6 +126,49 @@ class FastFlood(object):
 		# Just making sure we do not have negative water height (not possible)
 		self.hw[self.hw<0] = 1e-6
 		# Done
+
+	def run_single_flow(self, dt = 1e-3, no_numexpr = False, depressions = "cordonnier_fill"):
+		'''
+		'''
+
+		topohw = self.dem.data + self.hw
+		if(depressions == "cordonnier_fill"):
+			filled = self.graph.compute_graph_v6_SS("fill",topohw,self.dem.neighbourer)
+		elif(depressions == "cordonnier_carve"):
+			filled = self.graph.compute_graph_v6_SS("carve",topohw,self.dem.neighbourer)
+		elif(depressions == "priority_flood"):
+			filled = self.graph.compute_graph_v6_PQ(topohw,self.dem.neighbourer)
+
+		self.hw += (filled - topohw)
+		self.hw[self.hw<0] = 1e-6
+		Sw = np.full_like(self.hw,1e-6)
+		self.Qwin.fill(0)
+		self.Qwout.fill(0)
+		self.Qwin = self.graph.get_DA_SS(self.dem.neighbourer, filled) * self.precipitations
+		Sr = self.graph.get_Sreceivers()
+		dx = self.graph.get_dx_array()
+		if(no_numexpr):
+			Sw = (filled - filled[Sr])/dx
+			tmask = (Sw>=1e-6)
+			# Sw[Sw <= 0] = 1e-6
+			self.Qwout[tmask] = dx[tmask] * 1/self.manning * np.power(self.hw[tmask],5/3) * np.sqrt(Sw[tmask])
+			print(np.unique(dx))
+			# print(np.unique(Sw))
+
+			self.hw += (self.Qwin-self.Qwout)/(self.dem.dx * self.dem.dy) * dt
+			self.hw[self.hw<0 | ~self.mask] = 1e-6
+		else:
+			recZ = filled[Sr]
+			Sw = ne.evaluate("(filled - recZ)/dx")
+			Sw = ne.evaluate("where(Sw<=0,1e-6,Sw)")
+			self.Qwout = ne.evaluate("dx * 1/manning * hw**(5/3) * sqrt(Sw)", local_dict = {'manning': self.manning,'hw':self.hw, 'Sw':Sw, 'dx':dx})
+			self.hw = ne.evaluate("hw + ((Qwin-Qwout)/(dx * dy) * dt)" , local_dict = {'Qwin': self.Qwin,'Qwout': self.Qwout,'hw':self.hw,'dx': self.dem.dx,'dy': self.dem.dy, 'dt':dt})
+			self.hw = ne.evaluate("where(((hw<0) | (mask == False)),0, hw)", local_dict = {'hw':self.hw, 'mask': self.mask})
+
+		
+
+
+
 
 
 	def plot_hw(self, figsize = None, vmin = None, vmax = None):
@@ -170,22 +219,26 @@ class FastFlood(object):
 		# Update the visual
 		self.fig.canvas.draw()
 
-	def plot_A(self, figsize = None, vmin = 0, vmax = 1.5):
-		filled = self.graph.compute_graph_multi_filled(self.dem.data + self.hw,self.dem.neighbourer)
-		A = self.graph.get_DA_proposlope(self.dem.neighbourer,filled)
+	def plot_Qw(self, figsize = None, vmin = 0, vmax = 1.5, out = True):
+		# filled = self.graph.compute_graph_multi_filled(self.dem.data + self.hw,self.dem.neighbourer)
+		# A = self.graph.get_DA_proposlope(self.dem.neighbourer,filled)
 		# plt.ioff()
 		self.fig, self.ax = self.dem.get_basemap(figsize)
-		self.hwim = self.ax.imshow(np.log10(A).reshape(self.dem.reshape), extent = self.dem.extent, vmin = vmin, vmax = vmax, cmap = 'Blues', alpha = 0.5)
+		toplot = self.Qwout if (out) else self.Qwin
+		self.hwim = self.ax.imshow(np.log10(toplot).reshape(self.dem.reshape), extent = self.dem.extent, vmin = vmin, vmax = vmax, cmap = 'Blues', alpha = 0.5)
 		self.cbar = plt.colorbar(self.hwim)
 		# plt.ion()
 		self.fig.canvas.draw()
 		# plt.pause(0.1)
 
-	def update_A(self):
-		filled = self.graph.compute_graph_multi_filled(self.dem.data + self.hw,self.dem.neighbourer)
-		A = self.graph.get_DA_proposlope(self.dem.neighbourer,filled)
-		self.hwim.set_data(np.log10(A).reshape(self.dem.reshape))
+	def update_Qw(self, out = True):
+		# filled = self.graph.compute_graph_multi_filled(self.dem.data + self.hw,self.dem.neighbourer)
+		# A = self.graph.get_DA_proposlope(self.dem.neighbourer,filled)
+		toplot = self.Qwout if (out) else self.Qwin
+		self.hwim.set_data(np.log10(toplot).reshape(self.dem.reshape))
 		self.fig.canvas.draw()
+
+
 
 
 
