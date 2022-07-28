@@ -336,6 +336,8 @@ public:
 		// std::cout << "DEBUGGRAPH6::4" << std::endl;
 		
 		this->compute_TO_SF_stack_version();
+
+		this->compute_MF_topological_order_insort(faketopo);
 		// std::cout << "DEBUGGRAPH6::5" << std::endl;
 
 		return format_output(faketopo);	

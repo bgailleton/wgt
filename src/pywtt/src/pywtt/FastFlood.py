@@ -82,14 +82,19 @@ class FastFlood(object):
 		self.mask = np.asarray(self.dem.neighbourer.get_mask_array(), dtype = bool)
 
 
-	def run(self, dt = 1e-3, graph_mode = 'multi_opti', force_flood = False):
+	def run(self, dt = 1e-3, graph_mode = 'multi_opti', force_flood = False, depressions = "cordonnier_fill", slope_mode = "manning"):
 		'''
 		Run one iteration of the fastflood model with a given time step dt
 		B.G.
 		'''
 		# Calculating water surface (topo + water height)
 		topohw = self.dem.data + self.hw
-		filled = self.graph.compute_graph_v6("fill",topohw,self.dem.neighbourer)
+		if(depressions == "cordonnier_fill"):
+			filled = self.graph.compute_graph_v6("fill",topohw,self.dem.neighbourer)
+		elif(depressions == "cordonnier_carve"):
+			filled = self.graph.compute_graph_v6("carve",topohw,self.dem.neighbourer)
+		elif(depressions == "priority_flood"):
+			filled = self.graph.compute_graph_v6_PQ(topohw,self.dem.neighbourer)
 
 
 		# initilising internal array ifnot done yet (it needs the graph to have been calculated at least once so it is unsafe to do it at build time)
@@ -109,9 +114,15 @@ class FastFlood(object):
 			pQwin = self.Qwin.copy()
 
 		cw.compute_Sw_sumslopes(self.graph, self.dem.neighbourer, self.hw, self.dem.data, self._Sw, self._susmt)
-		# Calculating the difference of water height
-		cw.run_multi_fastflood_static(self.graph, self.dem.neighbourer, self.hw, self.dem.data, self.manning, self.precipitations,self.Qwin,self.Qwout, self._Sw, self._susmt)
 		
+		if(slope_mode == "manning"):
+			# Calculating the difference of water height
+			cw.run_multi_fastflood_static(self.graph, self.dem.neighbourer, self.hw, self.dem.data, self.manning, self.precipitations,self.Qwin,self.Qwout, self._Sw, self._susmt)
+		elif(slope_mode == "prop"):
+			self.Qwin = smg.get_DA_proposlope(self.dem.neighbourer,filled)
+			cw.run_multi_fastflood_static_ext_Qwin(self.graph, self.dem.neighbourer, self.hw, self.dem.data, self.manning, self.precipitations,self.Qwin,self.Qwout, self._Sw, self._susmt)
+
+
 		if(force_flood):
 			np.maximum(self.Qwin,pQwin,out=self.Qwin)
 
