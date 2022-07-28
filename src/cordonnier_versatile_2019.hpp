@@ -2622,7 +2622,7 @@ public:
 	LMRerouter_II(){};
 
 	template<class topo_t, class Neighbourer_t>
-	bool run(std::string method, topo_t& topography, Neighbourer_t& neighbourer, std::vector<int>& Sreceivers, std::vector<size_t>& Sstack, std::vector<int>& links)
+	bool run(std::string method, topo_t& topography, Neighbourer_t& neighbourer, std::vector<int>& Sreceivers, std::vector<double>& Sdistance2receivers, std::vector<size_t>& Sstack, std::vector<int>& links)
 	{
 		// std::cout << "DEBUGLM_II::1" <<std::endl;
 		// tracking the number of basins
@@ -2913,7 +2913,81 @@ public:
 
 				Sreceivers[from] = to;
 
-				// std::cout <<Sreceivers[this->pitnode[bas]] << std::endl;
+				// std::cout << Sreceivers[this->pitnode[bas]] << std::endl;
+			}
+		}
+		else if (method == "fill")
+		{
+			std::vector<char> isinQ(neighbourer.nnodes,false);
+			std::vector<char> isfilled(neighbourer.nnodes,false);
+			std::vector<bool> basinDone(this->nbas,false);
+			std::vector<int> basfam(this->nbas,-1);
+			for(int i = 0; i< this->nbas; ++i)
+			{
+				if(neighbourer.can_flow_out_there(this->pitnode[i]))
+					basinDone[i] = true;
+
+				int node = this->stack[i];
+				if(this->receivers[node] != node)
+					basfam[node] = basfam[this->receivers[node]];
+				else
+					basfam[node] = node;
+			}
+
+
+			for(int i = 0; i < this->nbas; ++i)
+			{
+				int bas = this->stack[i];
+				if(neighbourer.can_flow_out_there(this->pitnode[bas]))
+					continue;
+				int from = this->receivers_node[bas].first; 
+				int to = this->receivers_node[bas].second;
+				double zref = std::max(topography[from], topography[to]);
+				Sreceivers[from] = to;
+				Sdistance2receivers[from] = neighbourer.dx;
+				isinQ[from] = true;
+				std::queue<int> Q;Q.emplace(from);
+				while(Q.empty() == false)
+				{
+					int next = Q.front();Q.pop();
+					isfilled[next] = true;
+					auto neighs = neighbourer.get_neighbours_only_id(next);
+					double lowest_z = topography[Sreceivers[next]];
+					int nznodeext = Sreceivers[next];
+					for(auto n : neighs )
+					{
+						int basn = this->basins[n];
+
+						if(isfilled[n] || basinDone[basn] || basfam[basn] != basfam[bas])
+						{
+							if(lowest_z > topography[n])
+							{
+								lowest_z = topography[n];
+								nznodeext = n;
+							}
+						}
+
+						if(isinQ[n])
+							continue;
+						// if(basfam[basn] != basfam[bas])
+						if(basn != bas)
+							continue;
+						if(basinDone[basn])
+							continue;
+						if(topography[n] <= zref)
+						{
+							Sreceivers[n] = next;
+							isinQ[n] = true;
+							Q.emplace(n);
+						}
+					}
+
+					topography[next] = std::max(lowest_z + 1e-4 + neighbourer.randu.get() * 1e-6, topography[next]);
+					zref = std::max(topography[next],zref);
+					Sreceivers[next] = nznodeext;
+					Sdistance2receivers[next] = neighbourer.dx;
+				}
+				basinDone[bas] = true;
 			}
 		}
 

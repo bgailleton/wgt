@@ -82,23 +82,13 @@ class FastFlood(object):
 		self.mask = np.asarray(self.dem.neighbourer.get_mask_array(), dtype = bool)
 
 
-	def run(self, dt = 1e-3, graph_mode = 'multi_opti'):
+	def run(self, dt = 1e-3, graph_mode = 'multi_opti', force_flood = False):
 		'''
 		Run one iteration of the fastflood model with a given time step dt
 		B.G.
 		'''
 		# Calculating water surface (topo + water height)
 		topohw = self.dem.data + self.hw
-		# The graph computes receivers and fill the topography
-		# filled = self.graph.compute_graph_multi_filled(topohw,self.dem.neighbourer)
-		# if(graph_mode == 'full'):
-		# 	filled = self.graph.compute_graph_v4(topohw,self.dem.neighbourer)
-		# elif(graph_mode == 'reduced'):
-		# 	filled = self.graph.compute_graph_v4_simple(topohw,self.dem.neighbourer)
-		# if(graph_mode == 'multi_opti'):
-		# 	filled = self.graph.compute_graph_multi_filled(topohw,self.dem.neighbourer)
-		# elif(graph_mode == 'carve'):
-		# 	filled = self.graph.compute_graph_v5("carve",topohw,self.dem.neighbourer)
 		filled = self.graph.compute_graph_v6("fill",topohw,self.dem.neighbourer)
 
 
@@ -115,9 +105,16 @@ class FastFlood(object):
 		self._Sw.fill(1e-6)
 		self._susmt.fill(0)
 
+		if(force_flood):
+			pQwin = self.Qwin.copy()
+
 		cw.compute_Sw_sumslopes(self.graph, self.dem.neighbourer, self.hw, self.dem.data, self._Sw, self._susmt)
 		# Calculating the difference of water height
 		cw.run_multi_fastflood_static(self.graph, self.dem.neighbourer, self.hw, self.dem.data, self.manning, self.precipitations,self.Qwin,self.Qwout, self._Sw, self._susmt)
+		
+		if(force_flood):
+			np.maximum(self.Qwin,pQwin,out=self.Qwin)
+
 		# Applying the diff to the water height
 		self.hw += (self.Qwin-self.Qwout)/(self.dem.dx * self.dem.dy) * dt
 		# print(np.min(self.Qwin), np.min(self.Qwout))
@@ -152,8 +149,7 @@ class FastFlood(object):
 			tmask = (Sw>=1e-6)
 			# Sw[Sw <= 0] = 1e-6
 			self.Qwout[tmask] = dx[tmask] * 1/self.manning * np.power(self.hw[tmask],5/3) * np.sqrt(Sw[tmask])
-			print(np.unique(dx))
-			# print(np.unique(Sw))
+
 
 			self.hw += (self.Qwin-self.Qwout)/(self.dem.dx * self.dem.dy) * dt
 			self.hw[self.hw<0 | ~self.mask] = 1e-6

@@ -84,7 +84,7 @@ void run_multi_fastflood_static(SMgraph& graph, Neighbourer_t& neighbourer, topo
 	// this main loop calculates Qi Qout/Qout and propagate Qi downstream
 	// std::vector<int> gabun(neighbourer.nnodes,0);
 	// double QW_OUT = 0, WEIGHTS = 0;
-	int totnrecs = 0;
+	int totnrecs = 0,nnorec = 0;
 	for(int i = graph.nnodes-1; i>=0; --i)
 	{
 		// Getting the next upstreamest node
@@ -102,7 +102,11 @@ void run_multi_fastflood_static(SMgraph& graph, Neighbourer_t& neighbourer, topo
 
 		// getting list of receivers
 		auto recs = graph.get_receiver_link_indices(node,neighbourer);
-		// if(recs.size() == 0)
+		if(recs.size() == 0)
+		{
+			nnorec += 1;
+			continue;
+		}
 		// 	throw std::runtime_error("norecs where should");
 		// std::cout << recs.size() << '|';
 		totnrecs += recs.size();
@@ -122,6 +126,8 @@ void run_multi_fastflood_static(SMgraph& graph, Neighbourer_t& neighbourer, topo
 			double weight = Sw[rec.second]/sumslopes[node];
 			// double weight = std::pow(Sw[rec.second],2)/sumsl;
 			sumw += weight;
+			if(weight > 1)
+				std::cout << "W>1::" << Sw[rec.second] << "|" << sumslopes[node] << std::endl;
 			// WEIGHTS+= weight;
 
 			if(neighbourer.is_active(rec.first))
@@ -138,15 +144,18 @@ void run_multi_fastflood_static(SMgraph& graph, Neighbourer_t& neighbourer, topo
 				maxslope = Sw[rec.second];
 		}
 
-		if(std::abs(sumw - 1) >1e-2 )
-			throw std::runtime_error("SUMW ERROR::" + std::to_string(sumw));
+		// if(std::abs(sumw - 1) >1e-2 )
+		// 	throw std::runtime_error("SUMW ERROR::" + std::to_string(sumw));
 
 		Qout[node] = neighbourer.dx * 1/manning * 0.5/recs.size() * std::pow(hw[node],5/3) * sumst/maxslope;// / std::sqrt(2); // Note that smst is the sum of slopes and maxslope is squarerooted
 		
 		if(std::isfinite(Qout[node]) == false)
-			std::cout << recs.size() << "|" << std::pow(hw[node],5/3) << "|" << maxslope << "|" << sumst << std::endl;
+		{
+			std::cout << recs.size() << "|" << std::pow(hw[node],5/3) << "|" << maxslope << "|" << sumst << "|node " << node <<"|Srec" << graph.Sreceivers[node] << "|" << (topography[node] + hw[node] - topography[graph.Sreceivers[node]] - hw[graph.Sreceivers[node]])  << std::endl;
+		}
 	}
 
+	std::cout << "N_no recs = " << nnorec << std::endl;
 	// std::cout << "FLUXES OUT = " << QW_OUT << " and weights " << WEIGHTS << " TOTNRECS " << totnrecs << " vs " << graph.isrec.size() << std::endl;
 }
 
@@ -161,78 +170,20 @@ void compute_Sw_sumslopes(SMgraph& graph, Neighbourer_t& neighbourer, topo_t& th
 	auto sumslopes = format_input(tsumslopes);
 
 	// First iteration to calculates the hydraulic slope in a SMG manner (should move that part to SMG btw)
-	for(int i = 0; i< neighbourer.nnodes; ++i)
+	for(size_t i = 0; i< graph.isrec.size(); ++i)
 	{
-		// if I is nodata, it cannot be a neighbour anyway, abort
-		if(neighbourer.can_flow_even_go_there(i) == false)
+		
+		int j = graph.links[i*2];
+		int k = graph.links[i*2 + 1];
+		
+		if(j < 0)
 			continue;
 
-		// elevation at i
-		double this_topo = topography[i];
+		if(graph.isrec[i] == false)
+			std::swap(j,k);
 
-		// Dealing with the first neighbour on the right
-		// -> getting id in the link vectors
-		int n = neighbourer.get_id_right_SMG(i);
-		// -> getting id in the neighbour vectors
-		int tn = neighbourer.get_right_index(i);
-		// double checking validity (cheap in term of computational cost)
-		if(n >=0 && n<neighbourer.nnodes * 4 && tn >= 0 && tn < neighbourer.nnodes)
-		{
-			// the local slope is the absolute Qouterence in elevation/dx, with an arbitrary minimum set to 1e-6
-			// Shit is square-rooted too
-			Sw[n] = std::sqrt(std::max(std::abs(topography[i] + hw[i] - topography[tn] - hw[tn])/neighbourer.dx, 1e-6));
-				
-			// Summing the slopes to the uptream node of i and tn
-			if(topography[i] + hw[i] > topography[tn] + hw[tn])
-				sumslopes[i] += Sw[n];
-			else
-				sumslopes[tn] += Sw[n];
-
-		}
-
-
-		// Redoing the same operations for the other neighbours
-		// See the first example for details
-		n = neighbourer.get_id_bottomright_SMG(i);
-		tn = neighbourer.get_bottomright_index(i);
-		if(n >=0 && n<neighbourer.nnodes * 4 && tn >= 0 && tn < neighbourer.nnodes)
-		{
-			Sw[n] = std::sqrt(std::max(std::abs(topography[i] + hw[i] - topography[tn] - hw[tn])/neighbourer.dxy, 1e-6));
-			if(topography[i] + hw[i] > topography[tn] + hw[tn])
-				sumslopes[i] += Sw[n];
-			else
-				sumslopes[tn] += Sw[n];
-
-		}
-
-
-		// Redoing the same operations for the other neighbours
-		// See the first example for details
-		n = neighbourer.get_id_bottom_SMG(i);
-		tn = neighbourer.get_bottom_index(i);
-		if(n >=0 && n<neighbourer.nnodes * 4 && tn >= 0 && tn < neighbourer.nnodes)
-		{
-			Sw[n] = std::sqrt(std::max(std::abs(topography[i] + hw[i] - topography[tn] - hw[tn])/neighbourer.dy, 1e-6));
-			if(topography[i] + hw[i] > topography[tn] + hw[tn])
-				sumslopes[i] += Sw[n];
-			else
-				sumslopes[tn] += Sw[n];
-
-		}
-
-
-		// Redoing the same operations for the other neighbours
-		// See the first example for details
-		n = neighbourer.get_id_bottomleft_SMG(i);
-		tn = neighbourer.get_bottomleft_index(i);
-		if(n >=0 && n<neighbourer.nnodes * 4 && tn >= 0 && tn < neighbourer.nnodes)
-		{
-			Sw[n] = std::sqrt(std::max(std::abs(topography[i] + hw[i] - topography[tn] - hw[tn])/neighbourer.dxy, 1e-6));
-			if(topography[i] + hw[i] > topography[tn] + hw[tn])
-				sumslopes[i] += Sw[n];
-			else
-				sumslopes[tn] += Sw[n];
-		}
+		Sw[i] = std::sqrt(std::max(std::abs(topography[j] + hw[j] - topography[k] - hw[k])/neighbourer.get_dx_from_isrec_idx(i), 1e-6));
+		sumslopes[j] += Sw[i];
 
 	}
 

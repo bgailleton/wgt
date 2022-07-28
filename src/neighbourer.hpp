@@ -2590,6 +2590,17 @@ public:
 		return out;
 	}
 
+	std::vector<bool> get_mask_array()
+	{
+		std::vector<bool> mask(this->nnodes,true);
+		for (int i=0; i< this->nnodes; ++i)
+		{
+			if(this->is_active(i) == false)
+				mask[i] = false;
+		}
+		return mask;
+	}
+
 
 };
 
