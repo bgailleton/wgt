@@ -494,7 +494,7 @@ class Graph
 				v.reserve(8);
 
 			// Iterating through all the nodes and finding the max slope
-			int n_donors_iintotal = 0;
+			// int n_donors_iintotal = 0;
 
 
 			for(int i = 0; i < this->nnodes; ++i)
@@ -558,7 +558,7 @@ class Graph
 			// std::cout << " qwe4" << std::endl;
 
 			// Iterating through all the nodes and finding the max slope
-			int n_donors_iintotal = 0;
+			// int n_donors_iintotal = 0;
 			// bool switc = false;
 
 			for(int row = 0; row < this->ny; ++row)
@@ -771,7 +771,7 @@ class Graph
 
 			std::vector<float> out(this->nnodes_t, 0.);
 
-			for(int i = 0; i < this->nnodes_t; ++i)
+			for(int i = 0; i < this->nnodes; ++i)
 			{
 				
 				int rec = this->receivers[i];
@@ -1204,7 +1204,7 @@ class Graph
 		inline size_t _get_neighbourer_id(int i)
 		{
 
-			size_t id_neighbourer = -1;
+			size_t id_neighbourer = 99;
 			// internal node, so neighbourer is 0
 			if(this->boundary[i] == 1)
 				id_neighbourer = 0;
@@ -1294,13 +1294,13 @@ class Graph
 					id_neighbourer = 0;
 			}
 
-			if(id_neighbourer == -1)
-			{
-				int row,col;
-				this->rowcol_from_node_id(i,row,col);
-				std::cout << "boundary was " << this->boundary[i] << " i: " << i << "/" << this->nnodes << " row: " << row << " col: " << col << std::endl;
-				throw std::runtime_error("neighbouring issue");
-			}
+			// if(id_neighbourer == -1)
+			// {
+			// 	int row,col;
+			// 	this->rowcol_from_node_id(i,row,col);
+			// 	std::cout << "boundary was " << this->boundary[i] << " i: " << i << "/" << this->nnodes << " row: " << row << " col: " << col << std::endl;
+			// 	throw std::runtime_error("neighbouring issue");
+			// }
 
 			return id_neighbourer;
 		}
@@ -1538,7 +1538,7 @@ class Graph
 			output.reserve(this->donors[i].size());
 
 			//Going through all the donor ID 
-			for(int j = 0; j < this->donors[i].size(); ++j)
+			for(size_t j = 0; j < this->donors[i].size(); ++j)
 			{
 				// And gathering the node ID,donor ID and distance to i of the donor node
 				output.emplace_back(this->donors[i][j], this->distance2receivers[this->donors[i][j]]);
@@ -1655,7 +1655,7 @@ class Graph
 					this->stack.emplace_back(nextnode);
 
 					// as well as all its donors which will be processed next
-					for( int j = 0; j < this->donors[nextnode].size(); ++j)
+					for( size_t j = 0; j < this->donors[nextnode].size(); ++j)
 					{
 						stackhelper.emplace(this->donors[nextnode][j]);
 					}
@@ -1859,7 +1859,7 @@ class Graph
 		void compute_flow_distance_river()
 		{
 			this->flowdistance = std::vector<float>(this->river_nodes.size(),0.);
-			for(int i = 0; i < this->river_stack.size(); ++i)
+			for(size_t i = 0; i < this->river_stack.size(); ++i)
 			{
 				int tn = this->river_stack[i]; 
 				if(this->can_flow_out_there(tn) || this->can_flow_even_go_there(tn) == false)
@@ -2569,7 +2569,7 @@ class Graph
 							PQ.emplace(PQ_helper<int,float>(tn.node,DDD[tn.node]));
 					}
 				}
-				if(PQ.size()> 10 * this->nnodes)
+				if( int(PQ.size()) > 10 * this->nnodes )
 					throw std::runtime_error("ERROR ^%&");
 			}
 
@@ -2853,8 +2853,8 @@ class Graph
 
 				int recriv = this->node2rnode[rec];
 
-				if(rn < 0 || recriv < 0 || rn >= this->river_nodes.size() || recriv >= this->river_nodes.size())
-					throw std::runtime_error("BIP BIP tn||rn "+ std::to_string(tn) + "||" + std::to_string(rn));
+				// if(rn < 0 || recriv < 0 || rn >= this->river_nodes.size() || recriv >= this->river_nodes.size())
+				// 	throw std::runtime_error("BIP BIP tn||rn "+ std::to_string(tn) + "||" + std::to_string(rn));
 				// std::cout << recriv << "|";
 
 				if(tempjunc[recriv] > 0)
@@ -2870,8 +2870,8 @@ class Graph
 
 			for(auto tn:junctionnode)
 			{
-				if(this->node2rnode[tn] < 0 || this->node2rnode[tn] >= this->river_nodes.size())
-					throw std::runtime_error("YOLO");
+				// if(this->node2rnode[tn] < 0 || this->node2rnode[tn] >= this->river_nodes.size())
+				// 	throw std::runtime_error("YOLO");
 				this->junctions[tn] = tempjunc[this->node2rnode[tn]];
 			}
 
@@ -3060,9 +3060,9 @@ class Graph
 			float newdx = this->dx*factor * newnx/coefx;
 			float newdy = this->dy*factor * newny/coefy;
 
-			float coor_factor = this->nnodes/newnxy;
-			float coor_factorx = this->nx/newnx;
-			float coor_factory = this->ny/newny;
+			// float coor_factor = this->nnodes/newnxy;
+			// float coor_factorx = this->nx/newnx;
+			// float coor_factory = this->ny/newny;
 			std::vector<float> newtopo(newnxy, -9999);
 
 			int nx2average = floor(this->nx/newnx);
@@ -3158,7 +3158,7 @@ class Graph
 		}
 
 		void boxBlur_4 (std::vector<float>& scl, std::vector<float>& tcl, int w, int h, float r) {
-		    for(int i=0; i<scl.size(); ++i) tcl[i] = scl[i];
+		    for(size_t i=0; i<scl.size(); ++i) tcl[i] = scl[i];
 		    this->boxBlurH_4(tcl, scl, w, h, r);
 		    this->boxBlurT_4(scl, tcl, w, h, r);
 		}
@@ -3670,7 +3670,7 @@ class Graph
 					{
 						if (dzdy > 0) aspect_rad = pi/2;
 						else if (dzdy < 0) aspect_rad = 2 * pi - pi/2;
-						else aspect_rad = aspect_rad;
+						// else aspect_rad = aspect_rad;
 					}
 
 					hillshade[i] = 255.0 * ((std::cos(zenith_rad) * std::cos(slope_rad)) + (std::sin(zenith_rad) * std::sin(slope_rad) * std::cos(azimuth_rad - aspect_rad)));
