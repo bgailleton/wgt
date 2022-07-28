@@ -311,7 +311,7 @@ void boxBlurT_4 (std::vector<float>& scl, std::vector<float>& tcl, int w, int h,
 
 void boxBlur_4 (std::vector<float>& scl, std::vector<float>& tcl, int w, int h, float r) 
 {
-	for(int i=0; i<scl.size(); ++i) tcl[i] = scl[i];
+	for(size_t i=0; i<scl.size(); ++i) tcl[i] = scl[i];
 	boxBlurH_4(tcl, scl, w, h, r);
 	boxBlurT_4(scl, tcl, w, h, r);
 }

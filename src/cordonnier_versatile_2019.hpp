@@ -720,12 +720,9 @@ class Cordonnier2019
 
 		std::vector<bool> pitdone(this->nbasins,false);
 
-		int lab = 1;
 		for(auto i : mstree)
-		// for(int ti = mstree.size() - 1 ; ti >=0; --ti)
 		{
 			// int i = mstree[ti];
-			int node_to = this->conn_nodes[i][0];
 			int node_from = this->conn_nodes[i][1];
 			int onode_to = this->conn_nodes[i][0];
 			int onode_from = this->conn_nodes[i][1];
@@ -789,7 +786,6 @@ class Cordonnier2019
 			// std::cout << i << "|" << this->graph->can_flow_even_go_there(this->conn_nodes[i][0]) << "|" << this->graph->can_flow_even_go_there(this->conn_nodes[i][1]) << "|" << conn_basins[i][1] << "|" << this->nbasins << std::endl;;
 			int node_to = this->conn_nodes[i][0];
 			int node_from = this->conn_nodes[i][1];
-			int outlet_from = this->basin_to_outlets[conn_basins[i][1] ];
 			int tg_bas = this->basin_labels[node_from];
 
 
@@ -1062,9 +1058,7 @@ public:
 
 	void _compute_mst_kruskal()
 	{
-		// this->mstree = std::vector<n_t>(this->nbasins - 1);
 		this->bas2links = std::vector< std::vector< Link<n_t, dist_t>* > >( this->nbasins, std::vector< Link<n_t, dist_t>* >() );
-		int mstree_size = 0;
 
 		UnionFindv2<n_t,dist_t> uf(nbasins, (*this) );
 		int j = 0;
@@ -1228,46 +1222,20 @@ public:
 	void _update_pits_receivers_carve()
 	{
 
-		// std::cout <<"ID,rfrom,cfrom,rto,cto,rout,cout" << std::endl;
-			
-		// int lab=0;
 		for(int i=this->stack.size() - 1; i >=0 ; --i)
-		// for(int i=0;  i<this->stack.size(); ++i)
 		{
 
 			auto tlink = this->stack[i];
-			// int i = mstree[ti];
-			int node_to = tlink->node_to;
 			int node_from = tlink->node_from;
 			int onode_to = tlink->node_to;
 			int onode_from = tlink->node_from;
 			int outlet_from = this->basin_to_outlets[tlink->from];
-
-			// if(this->graph->can_flow_out_there(outlet_from))
-			// {
-			// 	std::cout << "OUT??" << this->graph->can_flow_out_there(this->basin_to_outlets[this->basin_labels[node_to]]) << "|" << this->graph->can_flow_out_there(this->basin_to_outlets[this->basin_labels[node_from]]) << std::endl;
-			// 	continue;
-			// }
-
-			int rowf,colf,rowt,colt, rowo, colo;
-			// this->graph->rowcol_from_node_id(node_from,rowf,colf);
-			// this->graph->rowcol_from_node_id(node_to,rowt,colt);
-			// this->graph->rowcol_from_node_id(outlet_from,rowo,colo);
-			// std::cout << lab <<"," <<rowf <<"," <<colf <<"," << rowt<<"," <<colt <<"," << rowo<<"," << colo << std::endl;
-			// lab++;
-
 
 			int next_node = this->graph->receivers[node_from];
 			int temp = node_from;
 			bool keep_on = true;
 			do
 			{
-
-				// int this_row,this_col, this_rfrom, this_cfrom;
-				// this->graph->rowcol_from_node_id(next_node, this_row, this_col);
-				// this->graph->rowcol_from_node_id(node_from, this_rfrom, this_cfrom);
-
-				// std::cout << "This Rerouting " << this_row << "/" <<this_col << " to " << this_rfrom << "/" << this_cfrom << std::endl;
 
 
 				if(next_node == outlet_from)
@@ -1277,19 +1245,6 @@ public:
 
 
 				temp = this->graph->receivers[next_node];
-
-				// if(viz[temp])
-				// {
-				// 	std::cout << "CYCLICITY ON LINK:" << std::endl;
-				// 	std::cout << tlink->from << " to " << tlink->to << std::endl;;
-				// 	std::cout << rowf << "|" << colf << " to " << rowt << "|" << colt  << std::endl;;
-				// 	throw std::runtime_error("asdfasdfsadfasdf");
-				// }
-				// viz[next_node] = true;
-
-				// if(temp == next_node || this->graph->can_flow_out_there(next_node))
-				// 	keep_on = false;
-
 				this->graph->receivers[next_node] = node_from;
 				this->graph->distance2receivers[next_node] = this->graph->distance2receivers[node_from]; // just to have a length but it should not actually be used
 				node_from = next_node;
@@ -1301,9 +1256,6 @@ public:
 			this->graph->receivers[onode_from] = onode_to;
 			this->graph->distance2receivers[onode_from] = this->graph->dx; // just to have a length but it should not actually be used
 
-			this->graph->rowcol_from_node_id(onode_from,rowf,colf);
-			this->graph->rowcol_from_node_id(onode_to,rowt,colt);
-			// std::cout << "Final Rerouting " << rowf << "/" <<colf << " to " << rowt << "/" << colt << std::endl;
 		}
 		
 	}
@@ -1351,9 +1303,6 @@ public:
 			// int i = mstree[ti];
 			int node_to = tlink->node_to;
 			int node_from = tlink->node_from;
-			int onode_to = tlink->node_to;
-			int onode_from = tlink->node_from;
-			int outlet_from = this->basin_to_outlets[tlink->from];
 
 			int tg_bas = this->basin_labels[node_from];
 
@@ -1401,7 +1350,7 @@ public:
 
 	void update_receivers(std::string& method)
 	{
-		auto t1 = high_resolution_clock::now();
+		// auto t1 = high_resolution_clock::now();
 
 		if(method == "simple" || method == "Simple")
 			this->_update_pits_receivers_sompli();
@@ -1417,8 +1366,8 @@ public:
 		// std::cout << "fabul" << std::endl;
 		this->graph->recompute_SF_donors_from_receivers();
 
-		auto t2 = high_resolution_clock::now();
-		duration<double, std::milli> ms_double = t2 - t1;
+		// auto t2 = high_resolution_clock::now();
+		// duration<double, std::milli> ms_double = t2 - t1;
 		// std::cout << "Update recs -> " << ms_double.count() << " milliseconds" << std::endl;;
 
 	}
@@ -1658,8 +1607,6 @@ public:
 	{
 		// this->mstree = std::vector<n_t>(this->nbasins - 1);
 		this->bas2links = std::vector< std::vector< Link<n_t, dist_t>* > >( this->nbasins, std::vector< Link<n_t, dist_t>* >() );
-		int mstree_size = 0;
-
 		UnionFindv2<n_t,dist_t> uf(nbasins, (*this) );
 		int j = 0;
 
@@ -1831,24 +1778,11 @@ public:
 
 			auto tlink = this->stack[i];
 			// int i = mstree[ti];
-			int node_to = tlink->node_to;
+			// int node_to = tlink->node_to;
 			int node_from = tlink->node_from;
 			int onode_to = tlink->node_to;
 			int onode_from = tlink->node_from;
 			int outlet_from = this->basin_to_outlets[tlink->from];
-
-			// if(this->graph->can_flow_out_there(outlet_from))
-			// {
-			// 	std::cout << "OUT??" << this->graph->can_flow_out_there(this->basin_to_outlets[this->basin_labels[node_to]]) << "|" << this->graph->can_flow_out_there(this->basin_to_outlets[this->basin_labels[node_from]]) << std::endl;
-			// 	continue;
-			// }
-
-			int rowf,colf,rowt,colt, rowo, colo;
-			// this->graph->rowcol_from_node_id(node_from,rowf,colf);
-			// this->graph->rowcol_from_node_id(node_to,rowt,colt);
-			// this->graph->rowcol_from_node_id(outlet_from,rowo,colo);
-			// std::cout << lab <<"," <<rowf <<"," <<colf <<"," << rowt<<"," <<colt <<"," << rowo<<"," << colo << std::endl;
-			// lab++;
 
 
 			int next_node = this->graph->Sreceivers[node_from];
@@ -1856,12 +1790,6 @@ public:
 			bool keep_on = true;
 			do
 			{
-
-				// int this_row,this_col, this_rfrom, this_cfrom;
-				// this->graph->rowcol_from_node_id(next_node, this_row, this_col);
-				// this->graph->rowcol_from_node_id(node_from, this_rfrom, this_cfrom);
-
-				// std::cout << "This Rerouting " << this_row << "/" <<this_col << " to " << this_rfrom << "/" << this_cfrom << std::endl;
 
 
 				if(next_node == outlet_from)
@@ -1871,18 +1799,6 @@ public:
 
 
 				temp = this->graph->Sreceivers[next_node];
-
-				// if(viz[temp])
-				// {
-				// 	std::cout << "CYCLICITY ON LINK:" << std::endl;
-				// 	std::cout << tlink->from << " to " << tlink->to << std::endl;;
-				// 	std::cout << rowf << "|" << colf << " to " << rowt << "|" << colt  << std::endl;;
-				// 	throw std::runtime_error("asdfasdfsadfasdf");
-				// }
-				// viz[next_node] = true;
-
-				// if(temp == next_node || this->graph->can_flow_out_there(next_node))
-				// 	keep_on = false;
 
 				this->graph->Sreceivers[next_node] = node_from;
 				this->graph->Sdistance2receivers[next_node] = this->graph->Sdistance2receivers[node_from]; // just to have a length but it should not actually be used
@@ -1895,9 +1811,6 @@ public:
 			this->graph->Sreceivers[onode_from] = onode_to;
 			this->graph->Sdistance2receivers[onode_from] = this->graph->dx; // just to have a length but it should not actually be used
 
-			this->graph->rowcol_from_node_id(onode_from,rowf,colf);
-			this->graph->rowcol_from_node_id(onode_to,rowt,colt);
-			// std::cout << "Final Rerouting " << rowf << "/" <<colf << " to " << rowt << "/" << colt << std::endl;
 		}
 		
 	}
@@ -1945,9 +1858,9 @@ public:
 			// int i = mstree[ti];
 			int node_to = tlink->node_to;
 			int node_from = tlink->node_from;
-			int onode_to = tlink->node_to;
-			int onode_from = tlink->node_from;
-			int outlet_from = this->basin_to_outlets[tlink->from];
+			// int onode_to = tlink->node_to;
+			// int onode_from = tlink->node_from;
+			// int outlet_from = this->basin_to_outlets[tlink->from];
 
 			int tg_bas = this->basin_labels[node_from];
 
@@ -2241,7 +2154,7 @@ public:
 	{
 		// this->mstree = std::vector<n_t>(this->nbasins - 1);
 		this->bas2links = std::vector< std::vector< Link<n_t, dist_t>* > >( this->nbasins, std::vector< Link<n_t, dist_t>* >() );
-		int mstree_size = 0;
+		// int mstree_size = 0;
 
 		UnionFindv3<n_t,dist_t,Neighbourer_t,topo_t, LMRerouter<n_t,dist_t,Neighbourer_t,topo_t> > uf(nbasins, (*this) );
 		int j = 0;
@@ -2415,7 +2328,7 @@ public:
 
 			auto tlink = this->stack[i];
 			// int i = mstree[ti];
-			int node_to = tlink->node_to;
+			// int node_to = tlink->node_to;
 			int node_from = tlink->node_from;
 			int onode_to = tlink->node_to;
 			int onode_from = tlink->node_from;
@@ -2513,9 +2426,9 @@ public:
 			// int i = mstree[ti];
 			int node_to = tlink->node_to;
 			int node_from = tlink->node_from;
-			int onode_to = tlink->node_to;
-			int onode_from = tlink->node_from;
-			int outlet_from = this->basin_to_outlets[tlink->from];
+			// int onode_to = tlink->node_to;
+			// int onode_from = tlink->node_from;
+			// int outlet_from = this->basin_to_outlets[tlink->from];
 
 			int tg_bas = this->basin_labels[node_from];
 
@@ -2639,7 +2552,7 @@ public:
 			size_t node = Sstack[i];
 
 			// If it is its own receiver, then
-			if(Sreceivers[node] == node)
+			if(Sreceivers[node] == int(node))
 			{
 				// incrementing the basin label
 				++this->nbas;
@@ -2689,7 +2602,7 @@ public:
 		// std::cout << "DEBUGLM_II::4" <<std::endl;
 		
 		// going through each and every link
-		for(int i=0; i<links.size(); ++i)
+		for(int i=0; i < int(links.size()); ++i)
 		{
 			// if the link is not valid, I continue
 			if(links[i] < 0)
@@ -3035,7 +2948,7 @@ public:
 				this->stack.emplace_back(nextnode);
 
 				// as well as all its donors which will be processed next
-				for( int j = 0; j < this->donors[nextnode].size(); ++j)
+				for(size_t j = 0; j < this->donors[nextnode].size(); ++j)
 				{
 					stackhelper.emplace(this->donors[nextnode][j]);
 				}
@@ -3044,8 +2957,8 @@ public:
 
 		}
 
-		if(this->nbas != this->stack.size())
-			throw std::runtime_error("stacksize issue in LMRerouter_II::" + std::to_string(this->stack.size()) + " vs " + std::to_string(this->stack.size()));
+		// if(this->nbas != this->stack.size())
+		// 	throw std::runtime_error("stacksize issue in LMRerouter_II::" + std::to_string(this->stack.size()) + " vs " + std::to_string(this->stack.size()));
 
 		// for(auto v:this->stack)
 		// 	std::cout << v << "|";
