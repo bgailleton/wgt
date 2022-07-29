@@ -2028,7 +2028,7 @@ public:
 				continue;
 			}
 			
-			if(Sreceivers[tnode] == tnode)
+			if(Sreceivers[tnode] == int(tnode))
 			{
 				lab++;
 				this->basin_to_outlets.emplace_back(tnode);
@@ -2419,7 +2419,7 @@ public:
 		// std::cout <<"yolo";
 		std::vector<bool> isdone(neighbourer.nnodes_t,false);
 		// for(int i=this->stack.size() - 1; i >=0 ; --i)
-		for(int i=0;  i<this->stack.size(); ++i)
+		for(size_t i=0;  i<this->stack.size(); ++i)
 		{
 
 			auto tlink = this->stack[i];
@@ -2865,7 +2865,7 @@ public:
 					int next = Q.front();Q.pop();
 					isfilled[next] = true;
 					auto neighs = neighbourer.get_neighbours_only_id(next);
-					double lowest_z = topography[Sreceivers[next]];
+					double lowest_z = std::max(topography[Sreceivers[next]],topography[next]);
 					int nznodeext = Sreceivers[next];
 					for(auto n : neighs )
 					{

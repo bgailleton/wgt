@@ -120,7 +120,7 @@ class FastFlood(object):
 			cw.run_multi_fastflood_static(self.graph, self.dem.neighbourer, self.hw, self.dem.data, self.manning, self.precipitations,self.Qwin,self.Qwout, self._Sw, self._susmt)
 		elif(slope_mode == "prop"):
 			self.Qwin = smg.get_DA_proposlope(self.dem.neighbourer,filled)
-			cw.run_multi_fastflood_static_ext_Qwin(self.graph, self.dem.neighbourer, self.hw, self.dem.data, self.manning, self.precipitations,self.Qwin,self.Qwout, self._Sw, self._susmt)
+			cw.run_multi_fastflood_static_ext_Qwin(self.graph, self.dem.neighbourer, self.hw, self.dem.data, self.manning,self.Qwin,self.Qwout, self._Sw)
 
 
 		if(force_flood):

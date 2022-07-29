@@ -643,7 +643,7 @@ public:
 			int srec = -1;
 			T dist = -1;
 			T smax = -1e3;
-			for(int j=0; j<this->receivers[i].size(); ++j)
+			for(size_t j=0; j<this->receivers[i].size(); ++j)
 			{
 				T tsle = (topography[i] - topography[this->receivers[i][j]])/this->distance2receivers[i][j];
 				if(tsle > smax)
@@ -800,7 +800,7 @@ public:
 				this->Sstack.emplace_back(nextnode);
 
 				// as well as all its donors which will be processed next
-				for( int j = 0; j < this->Sdonors[nextnode].size(); ++j)
+				for( size_t j = 0; j < this->Sdonors[nextnode].size(); ++j)
 				{
 					stackhelper.emplace(this->Sdonors[nextnode][j]);
 				}
@@ -932,7 +932,7 @@ public:
 			{
 				std::vector<double> slopes(this->receivers[node].size());
 				double sumslopes = 0;
-				for(int j = 0;j < this->receivers[node].size(); ++j)
+				for(size_t j = 0;j < this->receivers[node].size(); ++j)
 				{
 					int rec = this->receivers[node][j];
 					slopes[j] = (topography[node] - topography[rec])/this->distance2receivers[node][j];
@@ -941,7 +941,7 @@ public:
 					sumslopes += slopes[j];
 				}
 
-				for(int j = 0;j < this->receivers[node].size(); ++j)
+				for(size_t j = 0;j < this->receivers[node].size(); ++j)
 				{
 					int rec = this->receivers[node][j];
 					DA[rec] += DA[node] * slopes[j]/sumslopes;

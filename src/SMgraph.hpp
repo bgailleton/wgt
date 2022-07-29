@@ -345,6 +345,8 @@ public:
 
 	}
 
+
+
 	template<class Neighbourer_t,class topo_t, class out_t>
 	out_t compute_graph(std::string depression_solver, topo_t& ttopography, Neighbourer_t& neighbourer)
 	{
@@ -454,6 +456,14 @@ public:
 
 		return format_output(faketopo);
 	}
+	template<class Neighbourer_t, class topo_t, class out_t>
+	out_t just_fill_it( topo_t& ttopography, Neighbourer_t& neighbourer)
+	{
+		auto topography = format_input(ttopography);
+		std::vector<double> faketopo = neighbourer.PriorityFlood_Wei2018(topography);
+		return format_output(faketopo);
+	}
+
 
 	template<class Neighbourer_t, class topo_t, class out_t>
 	out_t update_graph_multi_filled( topo_t& ttopography, Neighbourer_t& neighbourer)
@@ -1285,7 +1295,7 @@ public:
 
 				std::vector<double> slopes(receivers.size());
 				double sumslopes = 0;
-				for(int j = 0;j < receivers.size(); ++j)
+				for(size_t j = 0;j < receivers.size(); ++j)
 				{
 					int rec = receivers[j];
 					slopes[j] = (topography[node] - topography[rec])/neighbourer.dx;
@@ -1294,7 +1304,7 @@ public:
 					sumslopes += slopes[j];
 				}
 
-				for(int j = 0;j < receivers.size(); ++j)
+				for(size_t j = 0;j < receivers.size(); ++j)
 				{
 					int rec = receivers[j];
 					DA[rec] += DA[node] * slopes[j]/sumslopes;

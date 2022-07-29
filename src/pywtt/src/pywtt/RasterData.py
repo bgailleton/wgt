@@ -59,7 +59,6 @@ def RasterData_from_file(fname):
 	neighbourer = cw.D8N(out["nx"],out["ny"],out["dx"],out["dy"],out["x_min"],out["y_min"])
 	
 	rd = RasterData()
-	print(topo.dtype)
 	rd.data = topo
 	rd.neighbourer = neighbourer
 	rd.extent = [out['x_min'],out['x_max'],out['y_max'], out['y_min']]
@@ -74,6 +73,43 @@ def RasterData_from_file(fname):
 
 	return rd
 
+def CreateRasterData(nx = 200, ny = 200, dx = 30, dy = 30, x_min = 0, y_min = 0 ):
+	'''
+	Wrapper function creating a RasterData object from scratch, for example to hold other data later or to generate white noise
+	'''
+
+	rd = RasterData()
+	neighbourer = cw.D8N(nx,ny,dx,dy,x_min,y_min)
+	rd.neighbourer = neighbourer
+	x_max = (nx + 1) * dx + x_min
+	y_max = (ny + 1) * dy + y_min
+	rd.extent = [x_min,x_max,y_max, y_min]
+	rd.reshape =[ny,nx]
+	rd.dx = dx
+	rd.dy = dy
+	rd.dxy = math.sqrt(dx**2 + dy**2)
+	rd.nx = nx
+	rd.ny = ny
+	rd.nxy = rd.nx * rd.ny
+	rd.data = np.zeros(rd.nxy)
+	return rd
+
+
+
+def fill_raster(rd,method = "priority_flood"):
+	'''
+	return a filled version of the RasterData, assuming it is topography of course
+	'''
+	smg = cw.smgraph(rd.nxy,8)
+	topo = np.copy(rd.data).ravel()
+	ret = None
+	if("priority_flood" == method):
+		ret = np.array(smg.just_fill_it(topo, rd.neighbourer).reshape(rd.reshape))
+	elif("cordonnier" == method):
+		smg.init_graph_v6(rd.neighbourer)
+		ret = np.array(smg.compute_graph_v6('fill',topo, rd.neighbourer).reshape(rd.reshape))
+
+	return ret
 
 
 

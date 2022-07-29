@@ -166,17 +166,15 @@ void run_multi_fastflood_static(SMgraph& graph, Neighbourer_t& neighbourer, topo
 // returns the water diff
 template<class Neighbourer_t,class topo_t, class T, class out_t>
 void run_multi_fastflood_static_ext_Qwin(SMgraph& graph, Neighbourer_t& neighbourer, topo_t& thw, topo_t& ttopography, 
-	T manning, topo_t& tprecipitations, topo_t& tQin, topo_t& tQout, topo_t& tSw, topo_t& tsumslopes)
+	T manning, topo_t& tQin, topo_t& tQout, topo_t& tSw)
 {
 	// preformat the fluxes
 	// (does no cost a lot of performance, just makes sure everything is vector-like through pointer magic if needed)
 	auto hw = format_input(thw);
 	auto topography = format_input(ttopography);
-	auto precipitations = format_input(tprecipitations);
 	auto Qin = format_input(tQin);
 	auto Qout = format_input(tQout);
 	auto Sw = format_input(tSw);
-	auto sumslopes = format_input(tsumslopes);
 
 
 	// First iteration to calculates the hydraulic slope in a SMG manner (should move that part to SMG btw)

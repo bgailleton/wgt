@@ -1754,13 +1754,13 @@ public:
 				id_neighbourer = 0;
 		}
 
-		if(id_neighbourer == -1)
-		{
-			int row,col;
-			this->rowcol_from_node_id(i,row,col);
-			std::cout << "boundary was " << this->boundary[i] << " i: " << i << "/" << this->nnodes << " row: " << row << " col: " << col << std::endl;
-			throw std::runtime_error("neighbouring issue");
-		}
+		// if(id_neighbourer == -1)
+		// {
+		// 	int row,col;
+		// 	this->rowcol_from_node_id(i,row,col);
+		// 	std::cout << "boundary was " << this->boundary[i] << " i: " << i << "/" << this->nnodes << " row: " << row << " col: " << col << std::endl;
+		// 	throw std::runtime_error("neighbouring issue");
+		// }
 
 		return id_neighbourer;
 	}
@@ -2560,6 +2560,8 @@ public:
 			return this->dy;
 		else if(i%4 == 3)
 			return this->dxy;
+		else
+			return this->dx;
 	}
 
 	std::vector<int> get_ilinks_from_node(int i)
