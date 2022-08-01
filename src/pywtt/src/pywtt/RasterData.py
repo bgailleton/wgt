@@ -27,6 +27,7 @@ B.G.
 		self.nx = None
 		self.ny = None
 		self.nxy = None
+		self.crs = None
 
 
 
@@ -70,6 +71,8 @@ def RasterData_from_file(fname):
 	rd.ny = out['ny']
 	rd.nxy = rd.nx * rd.ny
 	rd.cpp = cw.numvecf64(rd.data)
+	rd.crs = out['crs']
+
 
 	return rd
 

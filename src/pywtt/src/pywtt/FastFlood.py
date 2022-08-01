@@ -95,6 +95,8 @@ class FastFlood(object):
 			filled = self.graph.compute_graph_v6("carve",topohw,self.dem.neighbourer)
 		elif(depressions == "priority_flood"):
 			filled = self.graph.compute_graph_v6_PQ(topohw,self.dem.neighbourer)
+		elif(depressions == "none"):
+			filled = self.graph.compute_graph_v6_nodep(topohw,self.dem.neighbourer)
 
 
 		# initilising internal array ifnot done yet (it needs the graph to have been calculated at least once so it is unsafe to do it at build time)
@@ -133,6 +135,7 @@ class FastFlood(object):
 
 		# Just making sure we do not have negative water height (not possible)
 		self.hw[self.hw<0] = 1e-6
+		self.hw[~self.mask] = 0
 		# Done
 
 	def run_single_flow(self, dt = 1e-3, no_numexpr = False, depressions = "cordonnier_fill"):
@@ -146,6 +149,8 @@ class FastFlood(object):
 			filled = self.graph.compute_graph_v6_SS("carve",topohw,self.dem.neighbourer)
 		elif(depressions == "priority_flood"):
 			filled = self.graph.compute_graph_v6_PQ(topohw,self.dem.neighbourer)
+		elif(depressions == "none"):
+			filled = self.graph.compute_graph_v6_nodep(topohw,self.dem.neighbourer)
 
 		self.hw += (filled - topohw)
 		self.hw[self.hw<0] = 1e-6
@@ -157,20 +162,21 @@ class FastFlood(object):
 		dx = self.graph.get_dx_array()
 		if(no_numexpr):
 			Sw = (filled - filled[Sr])/dx
-			tmask = (Sw>=1e-6)
+			tmask = (Sw>0)
 			# Sw[Sw <= 0] = 1e-6
-			self.Qwout[tmask] = dx[tmask] * 1/self.manning * np.power(self.hw[tmask],5/3) * np.sqrt(Sw[tmask])
+			# self.Qwout[tmask] = dx[tmask] * 1/self.manning * np.power(self.hw[tmask],5/3) * np.sqrt(Sw[tmask])
+			self.Qwout[tmask] = 1 * 1/self.manning * np.power(self.hw[tmask],5/3) * np.sqrt(Sw[tmask])
 
 
 			self.hw += (self.Qwin-self.Qwout)/(self.dem.dx * self.dem.dy) * dt
-			self.hw[self.hw<0 | ~self.mask] = 1e-6
+			self.hw[self.hw<=0 | ~self.mask] = 1e-6
 		else:
 			recZ = filled[Sr]
 			Sw = ne.evaluate("(filled - recZ)/dx")
 			Sw = ne.evaluate("where(Sw<=0,1e-6,Sw)")
 			self.Qwout = ne.evaluate("dx * 1/manning * hw**(5/3) * sqrt(Sw)", local_dict = {'manning': self.manning,'hw':self.hw, 'Sw':Sw, 'dx':dx})
 			self.hw = ne.evaluate("hw + ((Qwin-Qwout)/(dx * dy) * dt)" , local_dict = {'Qwin': self.Qwin,'Qwout': self.Qwout,'hw':self.hw,'dx': self.dem.dx,'dy': self.dem.dy, 'dt':dt})
-			self.hw = ne.evaluate("where(((hw<0) | (mask == False)),0, hw)", local_dict = {'hw':self.hw, 'mask': self.mask})
+			self.hw = ne.evaluate("where(((hw<0) | (mask == False)),1e-6, hw)", local_dict = {'hw':self.hw, 'mask': self.mask})
 
 		
 

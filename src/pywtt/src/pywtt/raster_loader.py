@@ -79,7 +79,7 @@ def load_dem_to_mgraph(fname):
 	'''
 
 	out = load_raster(fname)
-	neigh = cw.D8N(out["nx"],out["ny"],out["dx"],out["dy"],out["x_min"],out["x_max"])
+	neigh = cw.D8N(out["nx"],out["ny"],out["dx"],out["dy"],out["x_min"],out["y_min"])
 	mg = cw.mgraph(out["nx"] * out["ny"])
 	topo = out["array"].ravel()
 	return mg,neigh,topo,out

@@ -182,6 +182,7 @@ void run_multi_fastflood_static_ext_Qwin(SMgraph& graph, Neighbourer_t& neighbou
 	{
 		// Taking advantage of this loop to reinit discharge to 0
 		Qout[i] = 0;
+		// Qwin[i] = 0;
 	}
 	
 
@@ -199,7 +200,7 @@ void run_multi_fastflood_static_ext_Qwin(SMgraph& graph, Neighbourer_t& neighbou
 		// if nodata -> ignore
 		if(neighbourer.is_active(node) == false)
 		{
-			Qin[node] = 0;
+			// Qin[node] = 0;
 			continue;
 		}
 		

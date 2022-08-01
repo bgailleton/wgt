@@ -2819,6 +2819,7 @@ public:
 					// std::cout << B << std::endl;
 					C = Sreceivers[B];
 					Sreceivers[B] = A;
+
 					A = B;
 					B = C;
 				}
@@ -2828,6 +2829,7 @@ public:
 
 				// std::cout << Sreceivers[this->pitnode[bas]] << std::endl;
 			}
+
 		}
 		else if (method == "fill")
 		{

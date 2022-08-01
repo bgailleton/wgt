@@ -157,6 +157,9 @@ public:
 				continue;
 			}
 
+			// if(neighbourer.is_active(from) == false || neighbourer.is_active(to) == false )
+			// 	continue;
+
 			double dx = neighbourer.get_dx_from_isrec_idx(i);
 			double slope = (topography[from] - topography[to])/dx;
 			// std::cout << from << "|" << to << "|";
@@ -182,7 +185,6 @@ public:
 					this->SS[to] = slope;
 				}
 			}
-
 
 		}
 
@@ -252,6 +254,9 @@ public:
 			this->recompute_SF_donors_from_receivers();
 		
 			this->compute_TO_SF_stack_version();
+
+			if(depression_solver == "carve")
+				this->carve_topo_v2(1e-5, neighbourer, faketopo);
 					
 			this->compute_MF_topological_order_insort(faketopo);
 			this->update_Mrecs(faketopo,neighbourer);
@@ -297,6 +302,9 @@ public:
 			this->recompute_SF_donors_from_receivers();
 		
 			this->compute_TO_SF_stack_version();
+
+			if(depression_solver == "carve")
+				this->carve_topo_v2(1e-5, neighbourer, faketopo);
 		
 			// std::vector<int> to_recompute = this->carve_topo_v2(1e-4,neighbourer,faketopo);
 			// this->fill_topo_v2(1e-5,neighbourer,faketopo);
@@ -316,6 +324,25 @@ public:
 			// this->compute_MF_topological_order_insort(faketopo);
 			return format_output(faketopo);	
 		}
+
+	}
+
+	template<class Neighbourer_t,class topo_t, class out_t>
+	out_t compute_graph_v6_nodep(topo_t& ttopography, Neighbourer_t& neighbourer)
+	{
+		auto topography = format_input(ttopography);
+		this->reinit_graph_v6(neighbourer);
+		this->update_recs(topography,neighbourer);
+		
+		this->compute_SF_donors_from_receivers();
+		
+		this->compute_TO_SF_stack_version();
+
+		std::vector<double> faketopo(to_vec(topography));
+		this->compute_MF_topological_order_insort(faketopo);
+
+	
+		return format_output(faketopo);	
 
 	}
 
@@ -1331,7 +1358,7 @@ public:
 			int node = this->Sstack[i];
 			DA[node] += neighbourer.cellarea;
 
-			if(neighbourer.is_active(node))
+			if(neighbourer.can_flow_even_go_there(node) && node != this->Sreceivers[node])
 			{
 				int Srec = this->Sreceivers[node];
 				DA[Srec] += DA[node];
@@ -1392,6 +1419,113 @@ public:
 	int get_rec_array_size(){return int(this->isrec.size());}
 
 
+	/// Takes an array of nnodes size and sum the values at the outlets
+	/// This can be useful for checking mass balances for example
+	/// if true, include_internal_pits allow the code to add internal unprocessed pits, wether they are on purpose or not
+	template<class Neighbourer_t,class array_t, class T>
+	T sum_at_outlets(Neighbourer_t& neighbourer, array_t& tarray, bool include_internal_pits = true)
+	{
+		auto array = format_input(tarray);
+		T out = 0;
+		for(int i=0; i<this->nnodes; ++i)
+		{
+			if (this->Sreceivers[i] == i)
+			{
+				if(include_internal_pits)
+				{
+					out += array[i];
+				}
+				else if(neighbourer.can_flow_out_there(i) )
+				{
+					out += array[i];
+				}
+			}
+		}
+		return out;
+
+	}
+
+	/// Takes an array of nnodes size and sum the values at the outlets
+	/// This can be useful for checking mass balances for example
+	/// if true, include_internal_pits allow the code to add internal unprocessed pits, wether they are on purpose or not
+	template<class Neighbourer_t,class array_t, class out_t>
+	out_t keep_only_at_outlets(Neighbourer_t& neighbourer, array_t& tarray, bool include_internal_pits = true)
+	{
+		auto array = format_input(tarray);
+		std::vector<double> out = std::vector<double> (this->nnodes,0);
+		for(int i=0; i<this->nnodes; ++i)
+		{
+			if (this->Sreceivers[i] == i)
+			{
+				if(include_internal_pits)
+					out[i] = array[i];
+				else if(neighbourer.can_flow_out_there(i) )
+					out[i] = array[i];
+			}
+		}
+		return format_output(out);
+
+	}
+
+	bool is_Sstack_full()
+	{
+		if(int(this->Sstack.size()) != this->nnodes)
+		{
+			std::cout << "stack size (" << this->Sstack.size() << ") is invalid." << std::endl;
+			return false;
+		}
+		std::vector<int> ntimenodes(this->nnodes,0);
+
+		for(auto v:this->Sstack)
+		{
+			++ntimenodes[v];
+		}
+
+		int n_0 = 0,n_p1 = 0;
+		for(int i=0; i<this->nnodes; ++i)
+		{
+			if(ntimenodes[i] == 0)
+				++n_0;
+			else if(ntimenodes[i]>1)
+				++n_p1;
+		}
+
+		if(n_0 > 0 || n_p1 > 0)
+		{
+			std::cout << "Stack issue: " << n_p1 << " nodes appearing more than once and " << n_0 << " nodes not appearing" << std::endl;
+			return false;
+		}
+
+		std::vector<bool> isdone(this->nnodes,false);
+		for(int i = this->nnodes - 1; i>=0; --i)
+		{
+			auto v = this->Sstack[i];
+			isdone[v] = true;
+			if(int(v) !=  this->Sreceivers[v])
+			{
+				if(isdone[this->Sreceivers[v]])
+				{
+					std::cout << "Receiver processed before node stack is fucked" << std::endl;
+					return false;
+				}
+			}
+		}
+
+		return true;
+
+	}
+
+
+	std::vector<bool> has_Srecs()
+	{
+		std::vector<bool> haSrecs(this->nnodes,true);
+		for(int i=0;i<this->nnodes;++i)
+		{
+			if(this->Sreceivers[i] == i)
+				haSrecs[i] = false;
+		}
+		return haSrecs;
+	}
 
 
 
