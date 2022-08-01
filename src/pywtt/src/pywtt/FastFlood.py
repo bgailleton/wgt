@@ -164,8 +164,8 @@ class FastFlood(object):
 			Sw = (filled - filled[Sr])/dx
 			tmask = (Sw>0)
 			# Sw[Sw <= 0] = 1e-6
-			# self.Qwout[tmask] = dx[tmask] * 1/self.manning * np.power(self.hw[tmask],5/3) * np.sqrt(Sw[tmask])
-			self.Qwout[tmask] = 1 * 1/self.manning * np.power(self.hw[tmask],5/3) * np.sqrt(Sw[tmask])
+			self.Qwout[tmask] = dx[tmask] * 1/self.manning * np.power(self.hw[tmask],5/3) * np.sqrt(Sw[tmask])
+			# self.Qwout[tmask] = 1 * 1/self.manning * np.power(self.hw[tmask],5/3) * np.sqrt(Sw[tmask])
 
 
 			self.hw += (self.Qwin-self.Qwout)/(self.dem.dx * self.dem.dy) * dt
