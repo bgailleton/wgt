@@ -121,8 +121,10 @@ class FastFlood(object):
 			# Calculating the difference of water height
 			cw.run_multi_fastflood_static(self.graph, self.dem.neighbourer, self.hw, self.dem.data, self.manning, self.precipitations,self.Qwin,self.Qwout, self._Sw, self._susmt)
 		elif(slope_mode == "prop"):
-			self.Qwin = smg.get_DA_proposlope(self.dem.neighbourer,filled)
+			self.Qwin = self.graph.get_DA_proposlope(self.dem.neighbourer,filled)
 			cw.run_multi_fastflood_static_ext_Qwin(self.graph, self.dem.neighbourer, self.hw, self.dem.data, self.manning,self.Qwin,self.Qwout, self._Sw)
+		elif(slope_mode == "precipiton_like"):
+			cw.run_multi_fastflood_static_precipitonlike(self.graph, self.dem.neighbourer, self.hw, self.dem.data, self.manning, self.precipitations,self.Qwin,self.Qwout, self._Sw, self._susmt)
 
 
 		if(force_flood):
@@ -164,7 +166,8 @@ class FastFlood(object):
 			Sw = (filled - filled[Sr])/dx
 			tmask = (Sw>0)
 			# Sw[Sw <= 0] = 1e-6
-			self.Qwout[tmask] = dx[tmask] * 1/self.manning * np.power(self.hw[tmask],5/3) * np.sqrt(Sw[tmask])
+			# self.Qwout[tmask] = dx[tmask] * 1/self.manning * np.power(self.hw[tmask],5/3) * np.sqrt(Sw[tmask])
+			self.Qwout[tmask] = rd.dx * 1/self.manning * np.power(self.hw[tmask],5/3) * np.sqrt(Sw[tmask])
 			# self.Qwout[tmask] = 1 * 1/self.manning * np.power(self.hw[tmask],5/3) * np.sqrt(Sw[tmask])
 
 
