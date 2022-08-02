@@ -200,7 +200,7 @@ public:
 		}
 		else if(bountype == "periodic_EW")
 		{
-			for(int i = 0; i < this->nnodes; i++)
+			for(int i = 0; i < this->nnodes; ++i)
 			{
 				if(this->is_on_top_row(i) || this->is_on_bottom_row(i))
 					this->boundary[i] = 0;
@@ -210,7 +210,7 @@ public:
 		}
 		else if(bountype == "periodic_NS")
 		{
-			for(int i = 0; i < this->nnodes; i++)
+			for(int i = 0; i < this->nnodes; ++i)
 			{
 				if(this->is_on_leftest_col(i) || this->is_on_rightest_col(i))
 					this->boundary[i] = 0;
@@ -222,6 +222,13 @@ public:
 		{
 			throw std::runtime_error("invalid periodic boundaries");
 		}
+	}
+
+	template<class bou_t>
+	void set_custom_boundaries(bou_t& tbound)
+	{
+		auto bound = format_input(tbound);
+		this->boundary = to_vec(bound);
 	}
 
 	int get_boundary_at_node(int i){return this->boundary[i];}
@@ -2562,6 +2569,13 @@ public:
 			return this->dxy;
 		else
 			return this->dx;
+	}
+
+	template<class i_t>
+	T get_dx_from_links_idx( i_t i)
+	{
+		int j = std::floor(i/2);
+		return this->get_dx_from_isrec_idx(j);
 	}
 
 	std::vector<int> get_ilinks_from_node(int i)

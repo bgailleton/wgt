@@ -69,6 +69,11 @@ void run_multi_fastflood_static(SMgraph& graph, Neighbourer_t& neighbourer, topo
 	auto Sw = format_input(tSw);
 	auto sumslopes = format_input(tsumslopes);
 
+	// double cte_dx = neighbourer.dx;
+	// double cte_dy = neighbourer.dy
+	// double cte_dxy = std::sqrt(std::pow(dxy,2) - std::pow(dy,2)) * std::sqrt(std::pow(dxy,2) - std::pow(dx,2))
+
+
 
 	// First iteration to calculates the hydraulic slope in a SMG manner (should move that part to SMG btw)
 	for(int i = 0; i< neighbourer.nnodes; ++i)
@@ -123,9 +128,13 @@ void run_multi_fastflood_static(SMgraph& graph, Neighbourer_t& neighbourer, topo
 		// std::cout << "FF::DEBUG::2.51::" << rec.first <<"|" << rec.second << std::endl;
 			if(rec.first < 0 || rec.first >= neighbourer.nnodes)
 				continue;
+
+
 			double weight = Sw[rec.second]/sumslopes[node];
+
 			// double weight = std::pow(Sw[rec.second],2)/sumsl;
 			// sumw += weight;
+			
 			if(weight > 1)
 				std::cout << "W>1::" << Sw[rec.second] << "|" << sumslopes[node] << std::endl;
 			// WEIGHTS+= weight;
@@ -155,7 +164,141 @@ void run_multi_fastflood_static(SMgraph& graph, Neighbourer_t& neighbourer, topo
 		}
 	}
 
-	std::cout << "N_no recs = " << nnorec << std::endl;
+	// std::cout << "N_no recs = " << nnorec << std::endl;
+	// std::cout << "FLUXES OUT = " << QW_OUT << " and weights " << WEIGHTS << " TOTNRECS " << totnrecs << " vs " << graph.isrec.size() << std::endl;
+}
+
+// Multiple flow version of Fastflood
+// Serial version
+// 1) calculates hydrolic slope, sqrt and sum for the weighting
+// 2) Calculate simultaneously from upstream to downstream the Qin, Qout and dhw
+// returns the water diff
+template<class Neighbourer_t,class topo_t, class T, class out_t>
+void run_multi_fastflood_static_precipitonlike(SMgraph& graph, Neighbourer_t& neighbourer, topo_t& thw, topo_t& ttopography, 
+	T manning, topo_t& tprecipitations, topo_t& tQin, topo_t& tQout, topo_t& tSw, topo_t& tsumslopes)
+{
+	// preformat the fluxes
+	// (does no cost a lot of performance, just makes sure everything is vector-like through pointer magic if needed)
+	auto hw = format_input(thw);
+	auto topography = format_input(ttopography);
+	auto precipitations = format_input(tprecipitations);
+	auto Qin = format_input(tQin);
+	auto Qout = format_input(tQout);
+	auto Sw = format_input(tSw);
+	auto sumslopes = format_input(tsumslopes);
+
+	double norm_dx = neighbourer.dy;
+	double norm_dy = neighbourer.dx;
+	double norm_dxy = std::sqrt(std::pow(neighbourer.dxy,2) - std::pow(neighbourer.dy,2)) * std::sqrt(std::pow(neighbourer.dxy,2) - std::pow(neighbourer.dx,2));
+
+
+
+	// First iteration to calculates the hydraulic slope in a SMG manner (should move that part to SMG btw)
+	for(int i = 0; i< neighbourer.nnodes; ++i)
+	{
+		// Taking advantage of this loop to reinit discharge to 0
+		Qin[i] = 0;
+		Qout[i] = 0;
+	}
+	
+
+	// Now i have my hydraulic slope precalculated
+	// I can iterate through the reverse stack (upstream to downstream)
+	// this main loop calculates Qi Qout/Qout and propagate Qi downstream
+	// std::vector<int> gabun(neighbourer.nnodes,0);
+	// double QW_OUT = 0, WEIGHTS = 0;
+	int totnrecs = 0;//,nnorec = 0;
+	for(int i = graph.nnodes-1; i>=0; --i)
+	{
+		// Getting the next upstreamest node
+		int node = graph.stack[i];
+		// gabun[node] += 1;
+		// if nodata -> ignore
+		if(neighbourer.is_active(node) == false)
+		{
+			Qin[node] = 0;
+			continue;
+		}
+		
+		// Accumulating local disacharge (precipitation * area)
+		Qin[node] += precipitations[node] * neighbourer.cellarea;
+
+		// getting list of receivers
+		auto recs = graph.get_receiver_link_indices(node,neighbourer);
+		if(recs.size() == 0)
+		{
+			// nnorec += 1;
+			continue;
+		}
+		// 	throw std::runtime_error("norecs where should");
+		// std::cout << recs.size() << '|';
+		totnrecs += recs.size();
+		// double sumsl = 0;
+		// for(auto rec:recs)
+		// 	sumsl += std::pow(Sw[rec.second],2);
+
+		// I'll need to store the maximum slope and the sum of sts
+		double maxslope = 1e-6;
+		double sumst = 0;
+		double sum_dx = 0;
+		// double sumw = 0;
+		for(auto rec:recs)
+		{
+		// std::cout << "FF::DEBUG::2.51::" << rec.first <<"|" << rec.second << std::endl;
+			if(rec.first < 0 || rec.first >= neighbourer.nnodes)
+				continue;
+
+
+			double weight = Sw[rec.second]/sumslopes[node];
+
+			// double weight = std::pow(Sw[rec.second],2)/sumsl;
+			// sumw += weight;
+			
+			if(weight > 1)
+				std::cout << "W>1::" << Sw[rec.second] << "|" << sumslopes[node] << std::endl;
+			// WEIGHTS+= weight;
+
+			if(neighbourer.is_active(rec.first))
+			{
+				Qin[rec.first] += Qin[node] * weight;
+			}
+
+			auto tdx = neighbourer.get_dx_from_isrec_idx(rec.second);
+
+			if(tdx == neighbourer.dx)
+				sum_dx += weight * norm_dx;
+			else if(tdx == neighbourer.dy)
+				sum_dx += weight * norm_dy;
+			else if(tdx == neighbourer.dxy)
+				sum_dx += weight * norm_dxy;
+			else
+				throw std::runtime_error("fastflood.hpp::run_multi_fastflood_static_precipitonlike::K45B");
+
+			// else
+			// {
+			// 	QW_OUT += Qin[node] * weight;
+			// }
+			
+			sumst += std::pow(Sw[rec.second],2); // POW 2 because Sw it is already sqrted
+			if(Sw[rec.second] > maxslope)
+				maxslope = Sw[rec.second];
+		}
+
+		// if(std::abs(sumw - 1) >1e-2 )
+		// 	throw std::runtime_error("SUMW ERROR::" + std::to_string(sumw));
+
+		Qout[node] = sum_dx * 1/manning * std::pow(hw[node],5/3) * maxslope;// / std::sqrt(2); // Note that smst is the sum of slopes and maxslope is squarerooted
+		// Qout[node] = neighbourer.dx * 0.5/manning * std::pow(hw[node],5/3) * maxslope;// / std::sqrt(2); // Note that smst is the sum of slopes and maxslope is squarerooted
+		
+		std::cout << sum_dx << "||";
+
+		if(std::isfinite(Qout[node]) == false)
+		{
+			std::cout << recs.size() << "|" << std::pow(hw[node],5/3) << "|" << maxslope << "|" << sumst << "|node " << node <<"|Srec" << graph.Sreceivers[node] << "|" << (topography[node] + hw[node] - topography[graph.Sreceivers[node]] - hw[graph.Sreceivers[node]])  << std::endl;
+		}
+	}
+
+	// std::cout << "N_no recs = " << nnorec << std::endl;
 	// std::cout << "FLUXES OUT = " << QW_OUT << " and weights " << WEIGHTS << " TOTNRECS " << totnrecs << " vs " << graph.isrec.size() << std::endl;
 }
 
@@ -172,7 +315,7 @@ void run_multi_fastflood_static_ext_Qwin(SMgraph& graph, Neighbourer_t& neighbou
 	// (does no cost a lot of performance, just makes sure everything is vector-like through pointer magic if needed)
 	auto hw = format_input(thw);
 	auto topography = format_input(ttopography);
-	auto Qin = format_input(tQin);
+	// auto Qin = format_input(tQin);
 	auto Qout = format_input(tQout);
 	auto Sw = format_input(tSw);
 
@@ -191,7 +334,7 @@ void run_multi_fastflood_static_ext_Qwin(SMgraph& graph, Neighbourer_t& neighbou
 	// this main loop calculates Qi Qout/Qout and propagate Qi downstream
 	// std::vector<int> gabun(neighbourer.nnodes,0);
 	// double QW_OUT = 0, WEIGHTS = 0;
-	int totnrecs = 0,nnorec = 0;
+	int totnrecs = 0; // ,nnorec = 0;
 	for(int i = graph.nnodes-1; i>=0; --i)
 	{
 		// Getting the next upstreamest node
@@ -209,7 +352,7 @@ void run_multi_fastflood_static_ext_Qwin(SMgraph& graph, Neighbourer_t& neighbou
 		auto recs = graph.get_receiver_link_indices(node,neighbourer);
 		if(recs.size() == 0)
 		{
-			nnorec += 1;
+			// nnorec += 1;
 			continue;
 		}
 		// 	throw std::runtime_error("norecs where should");
@@ -234,7 +377,7 @@ void run_multi_fastflood_static_ext_Qwin(SMgraph& graph, Neighbourer_t& neighbou
 				maxslope = Sw[rec.second];
 		}
 
-		Qout[node] = neighbourer.dx * 1/manning * 0.5/recs.size() * std::pow(hw[node],5/3) * sumst/maxslope;// / std::sqrt(2); // Note that smst is the sum of slopes and maxslope is squarerooted
+		Qout[node] = neighbourer.dx * 1/manning * 1/recs.size() * std::pow(hw[node],5/3) * sumst/maxslope;// / std::sqrt(2); // Note that smst is the sum of slopes and maxslope is squarerooted
 		// Qout[node] = neighbourer.dx * 1/manning * 0.5 * std::pow(hw[node],5/3) * sumst/maxslope;// / std::sqrt(2); // Note that smst is the sum of slopes and maxslope is squarerooted
 		
 		if(std::isfinite(Qout[node]) == false)
@@ -243,7 +386,7 @@ void run_multi_fastflood_static_ext_Qwin(SMgraph& graph, Neighbourer_t& neighbou
 		}
 	}
 
-	std::cout << "N_no recs = " << nnorec << std::endl;
+	// std::cout << "N_no recs = " << nnorec << std::endl;
 	// std::cout << "FLUXES OUT = " << QW_OUT << " and weights " << WEIGHTS << " TOTNRECS " << totnrecs << " vs " << graph.isrec.size() << std::endl;
 }
 
