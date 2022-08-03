@@ -60,26 +60,57 @@ public:
 
 	// Number of nodes in the graph
 	int nnodes;
+	
 	// Number of neighbours by nodes
 	int n_neighbours;
+	
 	// bool vector for each link: true is receiver direction and false is donor
 	// The meaning of the index depends on the neighbourer
 	std::vector<bool> isrec;
+	
+	// integer vector of 2*isrec size with the node indices of each link
+	// for example, the nodes of link #42 would be indices 84 and 85
 	std::vector<int> links;
-	// Single graph receivers (optional)
+	
+	// Single graph receivers
+	// -> Sreceivers: steepest recervers (nnodes size), 
+	// -> number of donors (nnodes size),
+	// -> Steepest donors (nnodes * 8 size)
+	// --> donors of node i are located from index i*8 to index i*8 + nSdonors[i] not included
 	std::vector<int> Sreceivers,nSdonors,Sdonors;
-	// Topological order and Single graph topological order (optional)
-	std::vector<size_t> stack, Sstack;
 
 	// Single graph distance to receivers
 	std::vector<double> Sdistance2receivers;
 
+	// Steepest slope
 	std::vector<double> SS;
+	
+	// Topological order and Single graph topological order
+	std::vector<size_t> stack, Sstack;
 
-
+	
 	// default constructor
 	SMgraph(){};
-	SMgraph(int nnodes, int n_neighbours){this->nnodes = nnodes; this->n_neighbours = n_neighbours ;}
+
+	// Classic constructor, simply giving the number of nodes and the number of neighbours per node
+	SMgraph(int nnodes, int n_neighbours){this->nnodes = nnodes; this->n_neighbours = n_neighbours;}
+
+
+	// Initialisation of the graph structure
+	template<class Neighbourer_t>
+	void init_graph_v6(Neighbourer_t& neighbourer)
+	{
+		// Allocate vectors
+		this->_allocate_vectors();
+		neighbourer.fill_links_SMG(this->links);
+	}
+
+	template<class Neighbourer_t>
+	void reinit_graph_v6(Neighbourer_t& neighbourer)
+	{
+		// Allocate vectors
+		this->_reallocate_vectors();
+	}
 
 
 	void _allocate_vectors()
