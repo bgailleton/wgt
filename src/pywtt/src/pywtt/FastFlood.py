@@ -198,7 +198,7 @@ class FastFlood(object):
 		for i in range(1,50):
 			self.monitor["dHw_%s"%(i*2)].append(np.percentile(diff,i*2))
 
-		self.monitor["sumVhw"].append(np.sum(self.hw) * rd.dx * rd.dy)
+		self.monitor["sumVhw"].append(np.sum(self.hw) * self.dem.dx * self.dem.dy)
 		self.monitor["time"].append(self.full_time)
 		self.monitor["nit"].append(self.nit)
 
@@ -212,8 +212,8 @@ class FastFlood(object):
 
 		diff = self.hw - self.phw
 
-		X = stats.binned_statistic(np.log10(self.Qwin), np.log10(self.Qwin), 'count', bins=20).statistic
-		Y = stats.binned_statistic(np.log10(self.Qwin), diff, 'count', bins=20).statistic
+		X = stats.binned_statistic(self.Qwin, self.Qwin, 'median', bins=20).statistic
+		Y = stats.binned_statistic(self.Qwin, diff, 'median', bins=20).statistic
 		self.monitor["dhwfQwin_X"].append(X)
 		self.monitor["dhwfQwin_Y"].append(Y)
 
