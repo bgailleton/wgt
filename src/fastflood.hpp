@@ -89,7 +89,7 @@ void run_multi_fastflood_static(SMgraph& graph, Neighbourer_t& neighbourer, topo
 	// this main loop calculates Qi Qout/Qout and propagate Qi downstream
 	// std::vector<int> gabun(neighbourer.nnodes,0);
 	// double QW_OUT = 0, WEIGHTS = 0;
-	int totnrecs = 0,nnorec = 0;
+	int totnrecs = 0;//,nnorec = 0;
 	for(int i = graph.nnodes-1; i>=0; --i)
 	{
 		// Getting the next upstreamest node
@@ -109,7 +109,7 @@ void run_multi_fastflood_static(SMgraph& graph, Neighbourer_t& neighbourer, topo
 		auto recs = graph.get_receiver_link_indices(node,neighbourer);
 		if(recs.size() == 0)
 		{
-			nnorec += 1;
+			// nnorec += 1;
 			continue;
 		}
 		// 	throw std::runtime_error("norecs where should");
@@ -122,7 +122,7 @@ void run_multi_fastflood_static(SMgraph& graph, Neighbourer_t& neighbourer, topo
 		// I'll need to store the maximum slope and the sum of sts
 		double maxslope = 1e-6;
 		double sumst = 0;
-		// double sumw = 0;
+		double sumw = 0;
 		for(auto rec:recs)
 		{
 		// std::cout << "FF::DEBUG::2.51::" << rec.first <<"|" << rec.second << std::endl;
@@ -133,7 +133,7 @@ void run_multi_fastflood_static(SMgraph& graph, Neighbourer_t& neighbourer, topo
 			double weight = Sw[rec.second]/sumslopes[node];
 
 			// double weight = std::pow(Sw[rec.second],2)/sumsl;
-			// sumw += weight;
+			sumw += weight;
 			
 			if(weight > 1)
 				std::cout << "W>1::" << Sw[rec.second] << "|" << sumslopes[node] << std::endl;
@@ -153,8 +153,8 @@ void run_multi_fastflood_static(SMgraph& graph, Neighbourer_t& neighbourer, topo
 				maxslope = Sw[rec.second];
 		}
 
-		// if(std::abs(sumw - 1) >1e-2 )
-		// 	throw std::runtime_error("SUMW ERROR::" + std::to_string(sumw));
+		if(std::abs(sumw - 1) >1e-2 )
+			throw std::runtime_error("SUMW ERROR::" + std::to_string(sumw));
 
 		Qout[node] = neighbourer.dx * 1/manning * 1/recs.size() * std::pow(hw[node],5/3) * sumst/maxslope;// / std::sqrt(2); // Note that smst is the sum of slopes and maxslope is squarerooted
 		
@@ -241,7 +241,7 @@ void run_multi_fastflood_static_precipitonlike(SMgraph& graph, Neighbourer_t& ne
 		double maxslope = 1e-6;
 		double sumst = 0;
 		double sum_dx = 0;
-		// double sumw = 0;
+		double sumw = 0;
 		for(auto rec:recs)
 		{
 		// std::cout << "FF::DEBUG::2.51::" << rec.first <<"|" << rec.second << std::endl;
@@ -252,7 +252,7 @@ void run_multi_fastflood_static_precipitonlike(SMgraph& graph, Neighbourer_t& ne
 			double weight = Sw[rec.second]/sumslopes[node];
 
 			// double weight = std::pow(Sw[rec.second],2)/sumsl;
-			// sumw += weight;
+			sumw += weight;
 			
 			if(weight > 1)
 				std::cout << "W>1::" << Sw[rec.second] << "|" << sumslopes[node] << std::endl;
@@ -284,13 +284,13 @@ void run_multi_fastflood_static_precipitonlike(SMgraph& graph, Neighbourer_t& ne
 				maxslope = Sw[rec.second];
 		}
 
-		// if(std::abs(sumw - 1) >1e-2 )
-		// 	throw std::runtime_error("SUMW ERROR::" + std::to_string(sumw));
+		if(std::abs(sumw - 1) >1e-2 )
+			throw std::runtime_error("SUMW ERROR::" + std::to_string(sumw));
 
 		Qout[node] = sum_dx * 1/manning * std::pow(hw[node],5/3) * maxslope;// / std::sqrt(2); // Note that smst is the sum of slopes and maxslope is squarerooted
 		// Qout[node] = neighbourer.dx * 0.5/manning * std::pow(hw[node],5/3) * maxslope;// / std::sqrt(2); // Note that smst is the sum of slopes and maxslope is squarerooted
 		
-		std::cout << sum_dx << "||";
+		// std::cout << maxslope << "||";
 
 		if(std::isfinite(Qout[node]) == false)
 		{

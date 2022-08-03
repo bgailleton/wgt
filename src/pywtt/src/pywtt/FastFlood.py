@@ -4,29 +4,7 @@ import pywtt as pw
 import cppwtt as cw
 import math
 import matplotlib.pyplot as plt
-# import cv2
-
-# def fill_python(marker: np.ndarray, mask: np.ndarray, radius: int = 1):
-#     """Iteratively expand the markers white keeping them limited by the mask during each iteration.
-#     :param marker: Grayscale image where initial seed is white on black background.
-#     :param mask: Grayscale mask where the valid area is white on black background.
-#     :param radius Can be increased to improve expansion speed while causing decreased isolation from nearby areas.
-#     :returns A copy of the last expansion.
-#     Written By Semnodime.
-#     """
-    
-#     kernel = np.ones(shape=(radius * 2 + 1,) * 2, dtype=np.uint8)
-
-#     while True:
-#       expanded = cv2.dilate(src=marker, kernel=kernel)
-#       cv2.bitwise_and(src1=expanded, src2=mask, dst=expanded)
-
-#       # Termination criterion: Expansion didn't change the image at all
-#       if (marker == expanded).all():
-#           return expanded
-#       marker = expanded
-
-
+from scipy import stats
 
 
 
@@ -79,7 +57,14 @@ class FastFlood(object):
 		self.cbar = None
 		self.hwim = None
 
+
+		self.phw = self.hw.copy()
+
 		self.mask = np.asarray(self.dem.neighbourer.get_mask_array(), dtype = bool)
+
+		self.monitor = {}
+		self.full_time = 0
+		self.nit = 0
 
 
 	def run(self, dt = 1e-3, graph_mode = 'multi_opti', force_flood = False, depressions = "cordonnier_fill", slope_mode = "manning"):
@@ -87,8 +72,11 @@ class FastFlood(object):
 		Run one iteration of the fastflood model with a given time step dt
 		B.G.
 		'''
+		self.nit+= 1
+		self.full_time += dt
 		# Calculating water surface (topo + water height)
 		topohw = self.dem.data + self.hw
+		self.phw = self.hw.copy()
 		if(depressions == "cordonnier_fill"):
 			filled = self.graph.compute_graph_v6("fill",topohw,self.dem.neighbourer)
 		elif(depressions == "cordonnier_carve"):
@@ -143,8 +131,11 @@ class FastFlood(object):
 	def run_single_flow(self, dt = 1e-3, no_numexpr = False, depressions = "cordonnier_fill"):
 		'''
 		'''
+		self.nit+= 1
+		self.full_time += dt
 
 		topohw = self.dem.data + self.hw
+		self.phw = self.hw.copy()
 		if(depressions == "cordonnier_fill"):
 			filled = self.graph.compute_graph_v6_SS("fill",topohw,self.dem.neighbourer)
 		elif(depressions == "cordonnier_carve"):
@@ -182,6 +173,41 @@ class FastFlood(object):
 			self.hw = ne.evaluate("where(((hw<0) | (mask == False)),1e-6, hw)", local_dict = {'hw':self.hw, 'mask': self.mask})
 
 		
+
+
+
+
+	def monitor_dHw(self):
+
+		# Double checking the thingy has been initialised
+		for i in range(1,50):
+			if("dHw_%s"%(i*2) not in self.monitor):
+				self.monitor["dHw_%s"%(i*2)] = []
+
+		if("sumVhw" not in self.monitor):
+			self.monitor["sumVhw"] = []
+
+		if("time" not in self.monitor):
+			self.monitor["time"] = []
+
+		if("nit" not in self.monitor):
+			self.monitor["nit"] = []
+
+		diff = self.hw - self.phw
+
+		for i in range(1,50):
+			self.monitor["dHw_%s"%(i*2)].append(np.percentile(diff,i*2))
+
+		self.monitor["sumVhw"].append(np.sum(self.hw) * rd.dx * rd.dy)
+		self.monitor["time"].append(self.full_time)
+		self.monitor["nit"].append(self.nit)
+
+
+
+	def monitor_dHw(self):
+
+		
+		ret = stats.binned_statistic_2d(x, y, None, 'count', bins=[binx, biny])
 
 
 
