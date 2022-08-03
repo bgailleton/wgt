@@ -204,12 +204,18 @@ class FastFlood(object):
 
 
 
-	def monitor_dHw(self):
+	def monitor_dHwfQwin(self):
 
-		
-		ret = stats.binned_statistic_2d(x, y, None, 'count', bins=[binx, biny])
+		if("dhwfQwin_X" not in self.monitor):
+			self.monitor["dhwfQwin_X"] = []
+			self.monitor["dhwfQwin_Y"] = []
 
+		diff = self.hw - self.phw
 
+		X = stats.binned_statistic(np.log10(self.Qwin), np.log10(self.Qwin), 'count', bins=20)
+		Y = stats.binned_statistic(np.log10(self.Qwin), diff, 'count', bins=20)
+		self.monitor["dhwfQwin_X"].append(X)
+		self.monitor["dhwfQwin_Y"].append(Y)
 
 
 
