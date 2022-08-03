@@ -212,8 +212,8 @@ class FastFlood(object):
 
 		diff = self.hw - self.phw
 
-		X = stats.binned_statistic(np.log10(self.Qwin), np.log10(self.Qwin), 'count', bins=20)
-		Y = stats.binned_statistic(np.log10(self.Qwin), diff, 'count', bins=20)
+		X = stats.binned_statistic(np.log10(self.Qwin), np.log10(self.Qwin), 'count', bins=20).statistic
+		Y = stats.binned_statistic(np.log10(self.Qwin), diff, 'count', bins=20).statistic
 		self.monitor["dhwfQwin_X"].append(X)
 		self.monitor["dhwfQwin_Y"].append(Y)
 
